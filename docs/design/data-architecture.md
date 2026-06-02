@@ -1,0 +1,90 @@
+# Data Architecture
+
+- Version: 0.2
+- Date: 2026-05-27
+- Status: Sealed
+- Owner: zqw
+- Related:
+  - ../master-spec.md
+  - resource-model.md
+  - api-design.md
+
+## 1. Purpose
+
+This document defines the top-level data domains, ownership boundaries, persistence strategy, and data flow for the ClickHouse Manager MVP and roadmap.
+
+## 2. Data Domains
+
+| Data Domain | Owner | Storage / Source of Truth | MVP Handling |
+|---|---|---|---|
+| User request data | Manager API | request payload | validated and converted into UPMIO/K8s resources |
+| UPMIO control-plane state | Kubernetes + UPMIO | Kubernetes etcd through CRDs | read from Project, UnitSet, Unit, PodMonitor, future GrpcCall |
+| Kubernetes native state | Kubernetes | Kubernetes etcd | read Pods, PVCs, Services, Endpoints, Secrets metadata, Events |
+| ClickHouse business data | ClickHouse | ClickHouse PVCs and tables | not managed by Manager except validation probes |
+| Keeper metadata | ClickHouse Keeper | Keeper PVC/state | checked through Keeper health probes and ClickHouse system state |
+| Metrics | Prometheus | Prometheus TSDB | queried through Prometheus API |
+| Healthcheck reports | Manager | generated result; persistence minimal in MVP | returned by API, latest-report persistence can be added later |
+| Diagnostics outputs | Manager | generated from SQL/K8s/Prometheus | returned by API, optional future persistence |
+| Operation history | Manager / future audit store | TBD | not mandatory in MVP |
+
+## 3. MVP Storage Decision
+
+MVP Manager should be stateless or near-stateless.
+
+MVP does not introduce an independent database such as PostgreSQL, SQLite, or MySQL. The Manager reads authoritative state from:
+
+- Kubernetes API;
+- UPMIO CRDs;
+- ClickHouse SQL system tables;
+- Prometheus API.
+
+If a latest healthcheck report must be returned after execution, the MVP may keep it in memory or implement minimal persistence only when required by a phase. Productization may introduce a formal report/audit store.
+
+## 4. Data Flow
+
+```text
+User / UI / API Client
+        |
+        v
+ClickHouse Manager API
+        |
+        +--> Kubernetes API / UPMIO CRDs
+        |       Project / UnitSet / Unit / PodMonitor / future GrpcCall
+        |
+        +--> Kubernetes native resources
+        |       Pod / PVC / Service / Endpoint / ConfigMap / Secret metadata / Event
+        |
+        +--> ClickHouse SQL
+        |       system.clusters / system.replicas / system.parts / system.merges / system.mutations
+        |
+        +--> Prometheus API
+        |       target status / resource metrics / ClickHouse metrics
+        |
+        v
+Healthcheck Report / Diagnostics Summary / Operation Result
+```
+
+## 5. Security and Retention
+
+- Secrets must not be stored in ConfigMap.
+- Secret values must not appear in API responses, logs, reports, or Git.
+- API output must redact sensitive fields.
+- Operation history retention is future work unless explicitly implemented by a phase.
+- Healthcheck and diagnostics report retention is minimal in MVP and must be defined before productization.
+
+## 6. Future Persistence Options
+
+| Option | Use Case | Notes |
+|---|---|---|
+| Kubernetes CR / ConfigMap | lightweight latest report | simple but not ideal for long-term history |
+| PostgreSQL / relational store | operation history and audit | productization candidate |
+| Object storage | large report/archive | candidate for backup/report archive |
+| Prometheus | time-series metrics only | not a general report store |
+
+## 7. Open Questions
+
+| Question | Resolution Phase |
+|---|---|
+| Does operation history need a persistent database before demo? | Phase 03 / productization |
+| Should latest healthcheck report be persisted in Kubernetes? | Phase 04 |
+| What retention policy is required for audit reports? | Future |

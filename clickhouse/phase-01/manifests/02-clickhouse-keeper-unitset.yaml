@@ -1,0 +1,45 @@
+apiVersion: upm.syntropycloud.io/v1alpha2
+kind: UnitSet
+metadata:
+  name: clickhouse-runtime-keeper
+  namespace: upm-clickhouse-runtime
+  labels:
+    upm.api/service-group.name: clickhouse-runtime
+    upm.api/service-group.type: clickhouse-sg
+    upm.api/service.type: clickhouse-keeper
+spec:
+  type: clickhouse-keeper
+  version: 26.3.9.8
+  units: 3
+  env:
+    - name: SECRET_MOUNT
+      value: /etc/upm/secret
+    - name: AES_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: aes-secret-key
+          key: AES_SECRET_KEY
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+  storage:
+    - name: data
+      size: 10Gi
+      storageClassName: local-path
+      mountPath: /var/lib/clickhouse-keeper
+  emptyDir:
+    - name: log
+      size: 1Gi
+      mountPath: /var/log/clickhouse-keeper
+  extraVolume:
+    - volume:
+        name: unit-secret
+        secret:
+          secretName: clickhouse-runtime-secret
+      volumeMountPath: /etc/upm/secret
+  unitService:
+    type: ClusterIP

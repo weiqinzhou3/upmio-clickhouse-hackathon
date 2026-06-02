@@ -1,0 +1,12 @@
+[submodule "unit-operator"]
+	path = unit-operator
+	url = https://github.com/weiqinzhou3/unit-operator.git
+	branch = phase-01
+[submodule "upm-packages"]
+	path = upm-packages
+	url = https://github.com/weiqinzhou3/upm-packages.git
+	branch = phase-01
+[submodule "compose-operator"]
+	path = compose-operator
+	url = https://github.com/weiqinzhou3/compose-operator.git
+	branch = main

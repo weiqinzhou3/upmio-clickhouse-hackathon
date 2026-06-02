@@ -1,0 +1,21 @@
+image:
+  registry: quay.io
+  repository: upmio/compose-operator
+  tag: v1.1.1
+  pullPolicy: IfNotPresent
+
+webhook:
+  enabled: true
+  certManager:
+    enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+crds:
+  enabled: true

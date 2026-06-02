@@ -1,0 +1,20 @@
+apiVersion: upm.syntropycloud.io/v1alpha1
+kind: GrpcCall
+metadata:
+  name: clickhouse-logical-backup-runtime
+  namespace: upm-clickhouse-runtime
+spec:
+  targetUnit: clickhouse-runtime-0
+  type: clickhouse
+  action: logical-backup
+  ttlSecondsAfterFinished: 86400
+  parameters:
+    backupFile: runtime-validation/full-001
+    username: default
+    objectStorage:
+      endpoint: s3.example.invalid
+      bucket: upm-runtime-validation
+      accessKey: REDACTED_RUNTIME_PLACEHOLDER
+      secretKey: REDACTED_RUNTIME_PLACEHOLDER
+      ssl: false
+      type: Minio

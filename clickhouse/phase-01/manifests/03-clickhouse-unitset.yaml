@@ -1,0 +1,63 @@
+apiVersion: upm.syntropycloud.io/v1alpha2
+kind: UnitSet
+metadata:
+  name: clickhouse-runtime
+  namespace: upm-clickhouse-runtime
+  labels:
+    upm.api/service-group.name: clickhouse-runtime
+    upm.api/service-group.type: clickhouse-sg
+    upm.api/service.type: clickhouse
+  annotations:
+    upm.api/clickhouse-keeper.service-name: clickhouse-runtime-keeper
+spec:
+  type: clickhouse
+  version: 26.3.9.8
+  units: 2
+  env:
+    - name: SECRET_MOUNT
+      value: /etc/upm/secret
+    - name: AES_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: aes-secret-key
+          key: AES_SECRET_KEY
+    - name: SECRET_NAME
+      value: clickhouse-runtime-secret
+    - name: CLICKHOUSE_ADMIN_SECRET_NAME
+      value: clickhouse-runtime-secret
+    - name: CLICKHOUSE_ADMIN_PASSWORD_KEY
+      value: CLICKHOUSE_ADMIN_PASSWORD
+    - name: CLICKHOUSE_ADMIN_USER
+      value: admin
+    - name: CLICKHOUSE_METRICS_PORT
+      value: "9363"
+    - name: CLICKHOUSE_METRICS_PATH
+      value: /metrics
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+  storage:
+    - name: data
+      size: 20Gi
+      storageClassName: local-path
+      mountPath: /var/lib/clickhouse
+  emptyDir:
+    - name: log
+      size: 1Gi
+      mountPath: /var/log/clickhouse
+  extraVolume:
+    - volume:
+        name: unit-secret
+        secret:
+          secretName: clickhouse-runtime-secret
+      volumeMountPath: /etc/upm/secret
+  unitService:
+    type: ClusterIP
+  podMonitor:
+    enable: true
+    endpoints:
+      - port: metrics

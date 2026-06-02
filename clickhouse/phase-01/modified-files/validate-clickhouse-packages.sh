@@ -1,0 +1,1 @@
+../../../upm-packages/scripts/validate-clickhouse-packages.sh
