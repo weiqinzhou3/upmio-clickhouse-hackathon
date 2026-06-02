@@ -1,7 +1,7 @@
 # Product Design
 
-- Version: 0.2
-- Date: 2026-05-27
+- Version: 0.3
+- Date: 2026-06-02
 - Status: Sealed
 - Owner: zqw
 - Related:
@@ -76,6 +76,7 @@ View Monitoring Summary and Day2 Diagnostics
 | Day1 Acceptance Report | Yes | structured pass/fail report |
 | Monitoring Summary | Yes | Prometheus target and key metric summary |
 | Day2 Diagnostics | Yes | read-only diagnostics for replicas, parts, merges, mutations, Keeper, storage |
+| Database Management | Future | explicit database lifecycle with validation, approval/audit, and post-apply verification |
 | Operation History | Partial/Future | phase-dependent; full persistence future |
 | Operation Center | Future | backup, restore, scaling, config change, approval |
 
@@ -154,6 +155,30 @@ View Monitoring Summary and Day2 Diagnostics
 | [Refresh] [Export]                               |
 +--------------------------------------------------+
 ```
+
+### 5.5 Future Database Management
+
+```text
++--------------------------------------------------+
+| Database Management                              |
++--------------------------------------------------+
+| Database: [ analytics                         ]  |
+| Owner:    [ application / analytics team      ]  |
+| Access:   [ Manager account validation        ]  |
+|                                                  |
+| [Dry Run] [Apply with Approval] [Verify]          |
++--------------------------------------------------+
+```
+
+Rules:
+
+- This module is a future production-grade product capability.
+- User business local table and Distributed table lifecycle remains
+  DBA/application-owned, not Manager-owned.
+- Manager may show read-only table metadata for diagnostics and may create
+  reserved validation objects for healthcheck.
+- UI actions for database lifecycle must call explicit Manager APIs and show
+  dry-run, drift, approval, and verification results.
 
 ## 6. Non-Goals
 

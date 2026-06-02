@@ -1,7 +1,7 @@
 # Phase 02: ClickHouse Topology Parameterization
 
-- Version: 0.4
-- Date: 2026-05-27
+- Version: 0.5
+- Date: 2026-06-02
 - Status: Confirmed
 - Priority: P1
 - Owner: zqw
@@ -182,45 +182,78 @@ Replicated tables must use shard-aware Keeper paths such as:
 
 The exact path must be documented and used consistently by examples and healthcheck SQL.
 
-### 5.5 Distributed table decision
+### 5.5 Distributed table initialization decision
 
-This phase must produce an explicit decision for the Master Spec Open Question:
+Decision:
 
-| Question | Required output |
-|---|---|
-| Should Distributed tables be initialized by Manager or left to application users? | Decide MVP behavior and future behavior |
+- MVP / hackathon stage:
+  - Manager may initialize only deterministic validation Distributed tables used
+    by healthcheck.
+  - Manager must not automatically create, alter, or drop user business
+    Distributed tables during cluster creation.
+  - Package topology rendering must not imply ownership of business schema.
+- Future production behavior:
+  - Manager should expose controlled database management APIs and UI workflows.
+  - User business local table and Distributed table lifecycle remains
+    DBA/application-owned and is not a Manager product responsibility.
+  - Manager may provide table DDL examples, topology/write-routing guidance, and
+    read-only metadata/diagnostics, but must not create, alter, or drop business
+    tables.
+  - Manager-owned validation objects must use reserved names and must be
+    idempotent, drift-checked, and safe to recreate.
 
-Acceptable outcomes:
+Rationale:
 
-- MVP: Manager initializes validation-only Distributed table for healthcheck, not user business tables.
-- Future: Manager may provide a controlled SQL task for user-requested Distributed table creation.
+Distributed tables encode business schema and sharding semantics. Production
+Manager should manage cluster/database operations and validation objects, not
+take over application table lifecycle.
 
 ### 5.6 Multi-shard write routing decision
 
-This phase must produce an explicit decision for:
+Decision:
 
-| Question | Required output |
-|---|---|
-| How should write routing be exposed for multi-shard clusters? | Define service/table recommendation |
+- Applications should write and query through explicitly defined Distributed
+  tables.
+- Applications should connect through a stable ClickHouse query service rather
+  than hard-coding individual Pod or shard endpoints.
+- Direct writes to local `ReplicatedMergeTree` tables are reserved for
+  controlled validation, diagnostics, bootstrap, or DBA-admin workflows.
+- The Manager should expose topology/service guidance and health evidence; it
+  should not hide business write-routing decisions behind implicit table
+  creation.
 
-Minimum decision:
+Rationale:
 
-- Applications should write to Distributed tables through a stable query service.
-- Direct local table writes are for controlled validation/admin workflows only.
+In multi-shard ClickHouse, local table writes bypass cluster routing. A stable
+query service plus Distributed tables gives applications an explicit routing
+contract while keeping shard-local endpoints available for operations.
 
 ### 5.7 DDL idempotency decision
 
-This phase must produce an explicit decision for:
+Decision:
 
-| Question | Required output |
-|---|---|
-| How should DDL idempotency be guaranteed? | Define SQL/task rule |
+- Validation SQL must be idempotent and deterministic.
+- Use `IF NOT EXISTS` where ClickHouse supports it.
+- `IF NOT EXISTS` alone is not sufficient for production-grade safety.
+- Manager-generated DDL is limited to database lifecycle and Manager-owned
+  validation objects.
+- Manager-generated DDL must be treated as desired state:
+  - record target cluster, database, validation object name, engine, and
+    checksum/version in a future Manager/audit store or approved Kubernetes
+    metadata path;
+  - compare existing Manager-owned object definitions before applying DDL;
+  - fail with a drift error if an existing Manager-owned object differs from
+    the requested definition;
+  - avoid destructive changes unless a future explicit approval workflow exists.
+- `ON CLUSTER` may be used only when distributed DDL configuration is rendered
+  and validated. Without distributed DDL, Manager must use controlled
+  per-instance execution and verify convergence.
 
-Minimum rule:
+Rationale:
 
-- Use `IF NOT EXISTS` where supported.
-- Validation SQL must be idempotent.
-- Manager-generated DDL must record target cluster, database, table, and checksum/version in future implementation.
+Production DDL safety requires both idempotent syntax and drift detection.
+Blindly using `IF NOT EXISTS` can hide schema mismatches and produce false
+success.
 
 ## 6. Files Likely Changed
 
@@ -234,6 +267,8 @@ examples/clickhouse/2s3r-values.yaml
 examples/clickhouse/4s2r-values.yaml
 docs/design/upm-packages-clickhouse-design.md
 docs/architecture/clickhouse-ha-architecture.md
+docs/design/api-design.md
+docs/design/product-design.md
 ```
 
 ## 7. Acceptance Criteria
@@ -275,9 +310,9 @@ If a validation script does not exist yet, create a small deterministic script o
 | Risk / Question | Handling |
 |---|---|
 | Single UnitSet becomes hard to scale by shard | Keep Option B and future CRD path documented |
-| Distributed DDL is not configured | Decide whether Phase 02 adds it or Phase 04 only validates absence |
+| Distributed DDL is not configured | Phase 02 documents the rule: use `ON CLUSTER` only after distributed DDL is rendered and validated; otherwise use controlled per-instance execution for validation objects |
 | Multi-shard runtime testing exceeds hackathon time | Static rendering is acceptable for Phase 02 unless user mandates runtime 2x2 |
-| Application write routing requires business schema knowledge | Manager should provide guidance and validation tables, not own all user DDL in MVP |
+| Application write routing requires business schema knowledge | Manager provides validation tables and guidance; user business local/Distributed table lifecycle remains DBA/application-owned |
 
 ## 10. Changelog
 
@@ -287,3 +322,4 @@ If a validation script does not exist yet, create a small deterministic script o
 | 0.2 | 2026-05-27 | Added topology design options and acceptance criteria |
 | 0.3 | 2026-05-27 | Added metadata and red-team fix structure |
 | 0.4 | 2026-05-27 | Restored topology option comparison, multi-shard requirements, Open Question closure obligations, and objective verification |
+| 0.5 | 2026-06-02 | Sealed production-grade decisions for Distributed table ownership, write routing, and DDL idempotency before Phase 02 implementation |

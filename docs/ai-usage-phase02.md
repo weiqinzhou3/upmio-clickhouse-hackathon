@@ -1,6 +1,6 @@
 # AI Usage Statement - Hackathon Second Stage
 
-- Version: 0.2
+- Version: 0.3
 - Date: 2026-06-02
 - Status: Working
 - Owner: zqw
@@ -289,3 +289,48 @@ Codex will summarize submitted evidence and append it to the log below.
   - Review report: `docs/review/phase-01-review.md`.
   - Updated source files and examples are validated by the Phase 01 closeout
     quality gates recorded in the completion report.
+
+### Entry 006 - Phase 02 Open Question Closure
+
+- Date: 2026-06-02
+- AI tools: Codex, ChatGPT discussion summarized by owner
+- Topic: Close Phase 02 topology open questions before implementation
+- Question:
+  - Should Distributed table initialization be owned by Manager or users?
+  - How should multi-shard write routing be exposed?
+  - How should DDL idempotency be defined for production-grade safety?
+- Human decision:
+  - Do not define the decisions by the smallest MVP. Define them by
+    enterprise production expectations.
+  - A future product may expose database management APIs and UI workflows.
+  - User business table management should remain DBA/application-owned; the
+    owner corrected the earlier over-expanded table-management interpretation.
+  - Multi-shard write routing through Distributed tables and a stable service is
+    acceptable.
+  - DDL idempotency should be decided by Codex using production safety
+    principles.
+- Codex decision:
+  - Manager may create only deterministic validation Distributed tables during
+    MVP healthcheck.
+  - Production Manager may expose explicit database management APIs; UI
+    workflows should call those APIs.
+  - Manager must not silently create or mutate business tables as a side effect
+    of cluster creation.
+  - User business local table and Distributed table lifecycle is out of Manager
+    ownership; Manager may provide validation objects, topology guidance, and
+    read-only diagnostics.
+  - Application write/query path should use Distributed tables through a stable
+    ClickHouse service; local-table writes are validation/admin-only.
+  - DDL safety for Manager-owned database lifecycle and validation objects
+    requires idempotent SQL plus desired-state recording, definition
+    comparison, drift failure, dry-run, approval/audit extension fields, and
+    post-apply verification. `IF NOT EXISTS` alone is not sufficient.
+- Files affected:
+  - `docs/master-spec.md`
+  - `docs/phases/phase-02-clickhouse-topology.md`
+  - `docs/architecture/clickhouse-ha-architecture.md`
+  - `docs/design/api-design.md`
+  - `docs/design/product-design.md`
+- Evidence:
+  - Phase 02 open questions are resolved in the Master Spec decision record and
+    no longer left as `TBD`.

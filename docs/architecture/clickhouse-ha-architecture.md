@@ -1,7 +1,7 @@
 # ClickHouse HA Architecture
 
-- Version: 0.3
-- Date: 2026-05-27
+- Version: 0.4
+- Date: 2026-06-02
 - Status: Sealed
 - Owner: zqw
 - Related:
@@ -103,7 +103,36 @@ These are roadmap items, not exclusions from the project.
 
 | Topic | Current Position | Resolution Phase |
 |---|---|---|
-| Distributed table initialization | TBD | Phase 02 / Phase 04 |
-| Multi-shard write routing | TBD | Phase 02 |
-| DDL idempotency | TBD | Phase 02 / Phase 04 |
+| Distributed table initialization | Resolved: Manager owns validation-only Distributed tables for healthcheck; production Manager may expose database management API/UI, while business table lifecycle remains DBA/application-owned | Phase 02 decision; Phase 04 validation implementation; production database API/UI later |
+| Multi-shard write routing | Resolved: applications write/query through Distributed tables via a stable query service; direct local table writes are validation/admin-only | Phase 02 |
+| DDL idempotency | Resolved: use idempotent SQL plus desired-state recording and drift verification; `IF NOT EXISTS` alone is not production-grade safety | Phase 02 decision; Phase 04+ implementation |
 | ClickHouse topology CRD | Future productization | After MVP |
+
+## 8. Production-grade Phase 02 Decisions
+
+Distributed table ownership:
+
+- Manager may create deterministic validation Distributed tables for Day1
+  healthcheck.
+- Manager must not silently create, alter, or drop user business tables.
+- Future database management may be exposed through Manager APIs and UI
+  workflows.
+- User business local table and Distributed table lifecycle remains
+  DBA/application-owned.
+- Manager may provide DDL examples, topology guidance, validation tables, and
+  read-only table metadata for diagnostics.
+
+Write routing:
+
+- Applications should use Distributed tables through a stable query service.
+- Shard-local or replica-local endpoints remain operational/admin paths, not
+  the default business write path.
+
+DDL idempotency:
+
+- Validation DDL must be repeatable.
+- Manager-generated DDL is limited to database lifecycle and Manager-owned
+  validation objects.
+- Manager-generated DDL must combine idempotent syntax, target recording,
+  checksum/version comparison, and drift failure for Manager-owned objects.
+- Destructive schema changes require a future explicit approval workflow.

@@ -1,7 +1,7 @@
 # API Design
 
-- Version: 0.3
-- Date: 2026-05-27
+- Version: 0.4
+- Date: 2026-06-02
 - Status: Sealed
 - Owner: zqw
 - Related:
@@ -49,6 +49,29 @@ Future productization must support authentication, role-based access, and approv
 | `GET /api/v1/clusters/{name}/metrics/summary` | Prometheus metric summary | yes |
 | `POST /api/v1/clusters/{name}/backup` | future backup operation | future |
 | `POST /api/v1/clusters/{name}/restore` | future restore operation | future |
+
+## 4.1 Future Database Management APIs
+
+Enterprise production product scope should include controlled database
+management APIs. These APIs are future/productization scope unless a later phase
+explicitly implements them.
+
+| API | Purpose | MVP |
+|---|---|---|
+| `GET /api/v1/clusters/{name}/databases` | list ClickHouse databases visible to the Manager account | future |
+| `POST /api/v1/clusters/{name}/databases` | create a database with explicit user/DBA intent | future |
+| `POST /api/v1/clusters/{name}/databases/{database}/validate` | validate database existence and Manager account access | future |
+
+Rules:
+
+- Cluster creation must not silently create user business tables.
+- User business local table and Distributed table lifecycle remains
+  DBA/application-owned, not Manager-owned.
+- Manager may create reserved validation objects for healthcheck and may inspect
+  table metadata read-only for diagnostics.
+- Manager-generated DDL is limited to database lifecycle and validation objects.
+- Existing Manager-owned object definitions must be compared before applying
+  DDL; drift must fail instead of being hidden by `IF NOT EXISTS`.
 
 ## 5. Request Model Example
 
