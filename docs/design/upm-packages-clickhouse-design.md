@@ -1,7 +1,7 @@
 # upm-packages ClickHouse Design
 
-- Version: 0.3
-- Date: 2026-05-27
+- Version: 0.4
+- Date: 2026-06-05
 - Status: Sealed
 - Owner: zqw
 - Related:
@@ -24,7 +24,7 @@ The existing public package is treated as an incomplete reference asset, not a f
 | Log mount | provide writable log mount for ClickHouse and Keeper |
 | Metrics | enable ClickHouse native Prometheus endpoint |
 | Keeper config | generate 3-node Keeper configuration |
-| Server config | generate Keeper connection, remote servers, macros, ports, users, profiles |
+| Server config | generate Keeper connection, remote servers, distributed DDL, macros, ports, users, profiles |
 | Values | expose topology, resources, storage, metrics, security, and service parameters |
 
 ## 3. Template and Values Boundary
@@ -65,6 +65,25 @@ topology:
 
 Examples should be values files only, not separate hard-coded implementation templates.
 
+Phase 02 implementation rule:
+
+- Helm values render static `remote_servers` shard/replica blocks.
+- `remote_servers` includes a runtime-derived cluster secret so Distributed
+  table queries authenticate across replicas without embedding a plaintext
+  remote password.
+- The shared PodTemplate still uses runtime template expressions for
+  environment-dependent fields such as service name, namespace, ports, and
+  Secret references.
+- Per-instance macros are runtime-derived from `unit-operator/unit.sn`:
+  `shard = unit.sn / replicasPerShard + 1`, `replica = unit.sn %
+  replicasPerShard + 1`.
+- ClickHouse Server `UnitSet.spec.units` must equal
+  `topology.shards * topology.replicasPerShard`.
+- The package renders a service-scoped `distributed_ddl` queue path:
+  `/clickhouse/task_queue/ddl/<unitset-name>`.
+- The package does not create or mutate user business local or Distributed
+  tables.
+
 ## 5. Metrics Design
 
 Use B7: ClickHouse native Prometheus endpoint.
@@ -95,3 +114,5 @@ Exporter sidecar is future only if native metrics are insufficient.
 - Default/admin user uses password from Secret.
 - Metrics endpoint listens and can be scraped.
 - Package supports topology values without hard-coded examples.
+- `ON CLUSTER` validation works when the ClickHouse runtime is deployed with
+  Keeper and the rendered distributed DDL configuration.

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: upm-clickhouse-phase02-runtime
+---
+apiVersion: upm.syntropycloud.io/v1alpha2
+kind: Project
+metadata:
+  name: upm-clickhouse-phase02-runtime
+spec: {}

@@ -1,0 +1,9 @@
+cluster:
+  name: upm_cluster
+
+topology:
+  shards: 1
+  replicasPerShard: 2
+
+keeper:
+  replicas: 3

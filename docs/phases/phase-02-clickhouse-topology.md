@@ -1,7 +1,7 @@
 # Phase 02: ClickHouse Topology Parameterization
 
-- Version: 0.5
-- Date: 2026-06-02
+- Version: 0.7
+- Date: 2026-06-05
 - Status: Confirmed
 - Priority: P1
 - Owner: zqw
@@ -26,13 +26,15 @@ In scope:
 
 1. Define `topology.shards` and `topology.replicasPerShard` values.
 2. Render `remote_servers` for multiple shards and replicas.
-3. Render per-instance `macros.shard` and `macros.replica`.
-4. Define Keeper path strategy for `ReplicatedMergeTree`.
-5. Define service naming conventions for per-unit and cluster access.
-6. Decide how Distributed tables are initialized or deferred.
-7. Decide multi-shard write routing exposure for MVP/Future.
-8. Define DDL idempotency strategy for generated SQL/tasks.
-9. Provide example values for 1s2r, 2s2r, 2s3r, and 4s2r.
+3. Render runtime-derived cluster secret for Distributed table authentication.
+4. Render per-instance `macros.shard` and `macros.replica`.
+5. Define Keeper path strategy for `ReplicatedMergeTree`.
+6. Render distributed DDL configuration for cluster-level validation DDL.
+7. Define service naming conventions for per-unit and cluster access.
+8. Decide how Distributed tables are initialized or deferred.
+9. Decide multi-shard write routing exposure for MVP/Future.
+10. Define DDL idempotency strategy for generated SQL/tasks.
+11. Provide example values for 1s2r, 2s2r, 2s3r, and 4s2r.
 
 ## 3. Non-Goals
 
@@ -159,6 +161,10 @@ number of <replica> blocks per shard = topology.replicasPerShard
 
 Hostnames must follow the selected UnitSet/service strategy and be stable across restart.
 
+The cluster definition must include a runtime-derived `<secret>` so Distributed
+table queries can authenticate across replicas while preserving the current
+query user.
+
 ### 5.3 macros rendering
 
 Each ClickHouse instance must render:
@@ -248,6 +254,14 @@ Decision:
 - `ON CLUSTER` may be used only when distributed DDL configuration is rendered
   and validated. Without distributed DDL, Manager must use controlled
   per-instance execution and verify convergence.
+- Phase 02 package rendering must include a service-scoped distributed DDL queue
+  path so runtime 2x2 validation can use `ON CLUSTER` safely:
+
+```xml
+<distributed_ddl>
+  <path>/clickhouse/task_queue/ddl/<unitset-name></path>
+</distributed_ddl>
+```
 
 Rationale:
 
@@ -260,11 +274,16 @@ success.
 ```text
 upm-packages/clickhouse/<version>/charts/values.yaml
 upm-packages/clickhouse/<version>/charts/files/clickhouseTemplate.tpl
-upm-packages/clickhouse/<version>/README.md
-examples/clickhouse/1s2r-values.yaml
-examples/clickhouse/2s2r-values.yaml
-examples/clickhouse/2s3r-values.yaml
-examples/clickhouse/4s2r-values.yaml
+upm-packages/clickhouse/<version>/charts/templates/configTemplate.yaml
+upm-packages/clickhouse/<version>/charts/templates/configValue.yaml
+upm-packages/clickhouse/<version>/charts/templates/podtemplate.yaml
+upm-packages/clickhouse/<version>/image/service-ctl.sh
+upm-packages/clickhouse/<version>/charts/README.md
+clickhouse/phase-02/values/1s2r-values.yaml
+clickhouse/phase-02/values/2s2r-values.yaml
+clickhouse/phase-02/values/2s3r-values.yaml
+clickhouse/phase-02/values/4s2r-values.yaml
+clickhouse/phase-02/scripts/validate-rendered-topology.py
 docs/design/upm-packages-clickhouse-design.md
 docs/architecture/clickhouse-ha-architecture.md
 docs/design/api-design.md
@@ -283,21 +302,25 @@ docs/design/product-design.md
 8. Distributed table initialization decision is documented in this phase and linked from Open Questions if still not implemented.
 9. Multi-shard write routing decision is documented.
 10. DDL idempotency decision is documented.
-11. Runtime support is not claimed for 2x2 unless actually validated.
+11. Rendered config includes runtime-derived `remote_servers` cluster secret.
+12. Rendered config includes service-scoped `distributed_ddl`.
+13. Runtime support is not claimed for 2x2 unless actually validated by real
+    Kubernetes apply plus ClickHouse topology and read/write SQL checks.
 
 ## 8. Verification Commands
 
 ```bash
 # Render topology examples
-helm template ch-1s2r upm-packages/clickhouse/<version>/charts --values examples/clickhouse/1s2r-values.yaml >/tmp/ch-1s2r.yaml
-helm template ch-2s2r upm-packages/clickhouse/<version>/charts --values examples/clickhouse/2s2r-values.yaml >/tmp/ch-2s2r.yaml
-helm template ch-2s3r upm-packages/clickhouse/<version>/charts --values examples/clickhouse/2s3r-values.yaml >/tmp/ch-2s3r.yaml
-helm template ch-4s2r upm-packages/clickhouse/<version>/charts --values examples/clickhouse/4s2r-values.yaml >/tmp/ch-4s2r.yaml
+helm template ch-1s2r upm-packages/clickhouse/26.3.9.8/charts --values clickhouse/phase-02/values/1s2r-values.yaml >/tmp/ch-1s2r.yaml
+helm template ch-2s2r upm-packages/clickhouse/26.3.9.8/charts --values clickhouse/phase-02/values/2s2r-values.yaml >/tmp/ch-2s2r.yaml
+helm template ch-2s3r upm-packages/clickhouse/26.3.9.8/charts --values clickhouse/phase-02/values/2s3r-values.yaml >/tmp/ch-2s3r.yaml
+helm template ch-4s2r upm-packages/clickhouse/26.3.9.8/charts --values clickhouse/phase-02/values/4s2r-values.yaml >/tmp/ch-4s2r.yaml
 
 # Static topology checks
-python3 scripts/validate_clickhouse_topology.py --rendered /tmp/ch-2s2r.yaml --shards 2 --replicas-per-shard 2
-python3 scripts/validate_clickhouse_topology.py --rendered /tmp/ch-2s3r.yaml --shards 2 --replicas-per-shard 3
-python3 scripts/validate_clickhouse_topology.py --rendered /tmp/ch-4s2r.yaml --shards 4 --replicas-per-shard 2
+python3 clickhouse/phase-02/scripts/validate-rendered-topology.py --rendered /tmp/ch-1s2r.yaml --shards 1 --replicas-per-shard 2
+python3 clickhouse/phase-02/scripts/validate-rendered-topology.py --rendered /tmp/ch-2s2r.yaml --shards 2 --replicas-per-shard 2
+python3 clickhouse/phase-02/scripts/validate-rendered-topology.py --rendered /tmp/ch-2s3r.yaml --shards 2 --replicas-per-shard 3
+python3 clickhouse/phase-02/scripts/validate-rendered-topology.py --rendered /tmp/ch-4s2r.yaml --shards 4 --replicas-per-shard 2
 
 # Kubernetes dry-run for rendered resources
 kubectl apply --dry-run=server -f /tmp/ch-2s2r.yaml
@@ -305,14 +328,50 @@ kubectl apply --dry-run=server -f /tmp/ch-2s2r.yaml
 
 If a validation script does not exist yet, create a small deterministic script or document equivalent grep/xmllint checks.
 
+Runtime 2x2 acceptance, when claimed, must additionally validate:
+
+```bash
+kubectl apply -f clickhouse/phase-02/manifests/00-namespace-project.yaml
+kubectl apply -f clickhouse/phase-02/manifests/02-clickhouse-keeper-unitset.yaml
+kubectl apply -f clickhouse/phase-02/manifests/03-clickhouse-unitset-2s2r.yaml
+
+kubectl wait --for=jsonpath='{.status.readyUnits}'=3 \
+  unitset/clickhouse-phase02-keeper \
+  -n upm-clickhouse-phase02-runtime \
+  --timeout=360s
+
+kubectl wait --for=jsonpath='{.status.readyUnits}'=4 \
+  unitset/clickhouse-phase02 \
+  -n upm-clickhouse-phase02-runtime \
+  --timeout=360s
+
+kubectl exec -n upm-clickhouse-phase02-runtime clickhouse-phase02-0 \
+  -c clickhouse -- service-ctl.sh login --query \
+  "SELECT cluster, shard_num, replica_num, host_name FROM system.clusters WHERE cluster='upm_cluster' ORDER BY shard_num, replica_num"
+
+clickhouse/phase-02/scripts/validate-runtime-2s2r.sh
+```
+
+Expected runtime evidence:
+
+- ClickHouse Keeper UnitSet ready count is `3/3`.
+- ClickHouse Server UnitSet ready count is `4/4`.
+- `system.clusters` returns 4 rows: 2 shards x 2 replicas.
+- `getMacro('shard')` and `getMacro('replica')` match unit index mapping.
+- A validation `ReplicatedMergeTree` plus `Distributed` table can be created with
+  `ON CLUSTER`, written through the Distributed table, read back across both
+  shards, and dropped cleanly.
+- Distributed table reads/writes must not fail with remote authentication errors.
+
 ## 9. Risks and Open Questions
 
 | Risk / Question | Handling |
 |---|---|
 | Single UnitSet becomes hard to scale by shard | Keep Option B and future CRD path documented |
-| Distributed DDL is not configured | Phase 02 documents the rule: use `ON CLUSTER` only after distributed DDL is rendered and validated; otherwise use controlled per-instance execution for validation objects |
-| Multi-shard runtime testing exceeds hackathon time | Static rendering is acceptable for Phase 02 unless user mandates runtime 2x2 |
+| Distributed DDL is not configured | Fixed in Phase 02 by rendering a service-scoped `distributed_ddl` queue path |
+| Multi-shard runtime testing exceeds hackathon time | Runtime 2x2 is now required before claiming Phase 02 acceptance |
 | Application write routing requires business schema knowledge | Manager provides validation tables and guidance; user business local/Distributed table lifecycle remains DBA/application-owned |
+| Distributed table remote authentication fails | Fixed in Phase 02 by rendering a runtime-derived `remote_servers` cluster secret |
 
 ## 10. Changelog
 
@@ -323,3 +382,5 @@ If a validation script does not exist yet, create a small deterministic script o
 | 0.3 | 2026-05-27 | Added metadata and red-team fix structure |
 | 0.4 | 2026-05-27 | Restored topology option comparison, multi-shard requirements, Open Question closure obligations, and objective verification |
 | 0.5 | 2026-06-02 | Sealed production-grade decisions for Distributed table ownership, write routing, and DDL idempotency before Phase 02 implementation |
+| 0.6 | 2026-06-05 | Aligned verification commands and evidence paths with the implemented `clickhouse/phase-02` assets |
+| 0.7 | 2026-06-05 | Required real 2x2 runtime validation, distributed DDL rendering, and Distributed table authentication before Phase 02 acceptance |

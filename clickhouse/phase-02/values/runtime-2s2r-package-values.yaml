@@ -1,0 +1,26 @@
+global:
+  imageRegistry: ""
+
+image:
+  registry: localhost
+  repository: upmio/clickhouse
+  tag: "26.3.9.8-runtime"
+  digest: ""
+  pullPolicy: IfNotPresent
+
+agent:
+  image:
+    registry: quay.io
+    repository: upmio/clickhouse-agent
+    tag: "26.3"
+    pullPolicy: IfNotPresent
+
+cluster:
+  name: upm_cluster
+
+topology:
+  shards: 2
+  replicasPerShard: 2
+
+keeper:
+  replicas: 3

@@ -334,3 +334,105 @@ Codex will summarize submitted evidence and append it to the log below.
 - Evidence:
   - Phase 02 open questions are resolved in the Master Spec decision record and
     no longer left as `TBD`.
+
+### Entry 007 - Phase 02 Topology Rendering Implementation
+
+- Date: 2026-06-05
+- AI tools: Codex
+- Topic: Implement repository Phase 02 static topology rendering
+- Human instruction:
+  - Resume hackathon work after a temporary pause for AI Coding methodology
+    material.
+  - Confirm unrelated AI Coding files were moved away.
+  - Confirm Kubernetes API is reachable again.
+  - Start Repository Phase 02 coding.
+- Codex phase-start review:
+  - Re-read `docs/master-spec.md`, `docs/evidence-summary.md`,
+    `docs/phases/phase-02-clickhouse-topology.md`, and referenced
+    architecture/design/runtime decision documents.
+  - Confirmed this phase implements package-level topology parameterization,
+    not Manager Backend, backup/restore, business table management, automatic
+    resharding, or a 2x2 runtime success claim.
+- Implementation decisions:
+  - Keep the UPMIO package/runtime-template path instead of bypassing UPMIO
+    with native Kubernetes-only configuration.
+  - Render `remote_servers` through Helm using `topology.shards` and
+    `topology.replicasPerShard`, so static `helm template` output can be
+    objectively counted.
+  - Keep per-Pod `macros.shard` and `macros.replica` as runtime template values
+    derived from `unit-operator/unit.sn`, because one PodTemplate is shared by
+    all ClickHouse units.
+  - Use single-UnitSet mapping: `unitIndex = shardIndex *
+    replicasPerShard + replicaIndex`.
+  - Keep the recommended Keeper path strategy as
+    `/clickhouse/tables/{cluster}/{shard}/{database}/{table}`.
+  - Preserve the business-table boundary: topology rendering does not imply
+    Manager ownership of user business local or Distributed tables.
+- Files affected:
+  - `upm-packages/clickhouse/26.3.9.8/charts/values.yaml`
+  - `upm-packages/clickhouse/26.3.9.8/charts/templates/configTemplate.yaml`
+  - `upm-packages/clickhouse/26.3.9.8/charts/templates/configValue.yaml`
+  - `upm-packages/clickhouse/26.3.9.8/charts/templates/podtemplate.yaml`
+  - `upm-packages/clickhouse/26.3.9.8/charts/files/clickhouseTemplate.tpl`
+  - `upm-packages/clickhouse/26.3.9.8/image/service-ctl.sh`
+  - `upm-packages/clickhouse/26.3.9.8/charts/README.md`
+  - `clickhouse/phase-02/`
+- Evidence:
+  - Phase 02 evidence values and verification script are stored under
+    `clickhouse/phase-02/`.
+  - Source modification symlinks are stored under
+    `clickhouse/phase-02/modified-files/`.
+
+### Entry 008 - Phase 02 Runtime Validation Repair
+
+- Date: 2026-06-05
+- AI tools: Codex, human review challenge
+- Topic: Replace paper-only Phase 02 acceptance with real Kubernetes and
+  ClickHouse SQL validation
+- Human challenge:
+  - Dry-run and static analysis are not sufficient acceptance evidence.
+  - Phase 02 must be validated by real `kubectl apply`, post-apply Kubernetes
+    state, ClickHouse topology checks, and read/write SQL tests.
+- Runtime findings:
+  - Real 2x2 ClickHouse apply initially failed because the node runtime image
+    still contained the old `service-ctl.sh`, which rejected `UNIT_COUNT=4`.
+  - After rebuilding/importing the local runtime image on all Kubernetes nodes,
+    the 4 ClickHouse Pods reached `2/2 Running`.
+  - `ON CLUSTER` DDL initially failed because the ClickHouse config lacked
+    `distributed_ddl`.
+  - Distributed table writes initially failed because `remote_servers` lacked a
+    cluster secret, so remote shard connections attempted default-user
+    authentication.
+- Codex remediation summary:
+  - Rebuilt/imported `localhost/upmio/clickhouse:26.3.9.8-runtime` on all four
+    Kubernetes nodes with the updated `service-ctl.sh`.
+  - Added service-scoped `distributed_ddl` to the ClickHouse package config:
+    `/clickhouse/task_queue/ddl/<unitset-name>`.
+  - Added runtime-derived `remote_servers` cluster secret based on existing
+    Secret material, avoiding plaintext remote passwords in the cluster config.
+  - Added `clickhouse/phase-02/scripts/validate-runtime-2s2r.sh` for full
+    runtime validation.
+  - Updated Phase 02 docs and design docs so 2x2 runtime support is not claimed
+    without real apply and SQL evidence.
+- Evidence:
+  - `clickhouse-phase02-keeper` reached expected/current/ready `3/3/3`.
+  - `clickhouse-phase02` reached expected/current/ready `4/4/4`.
+  - `system.clusters` returned 4 rows for `upm_cluster`: 2 shards x 2 replicas.
+  - Macros mapped as expected:
+    `0 -> shard01/replica01`, `1 -> shard01/replica02`,
+    `2 -> shard02/replica01`, `3 -> shard02/replica02`.
+  - `ON CLUSTER` created a validation database, a ReplicatedMergeTree local
+    table, and a Distributed table.
+  - Distributed write/read validation inserted 8 rows, read 4 rows from each
+    shard, and confirmed every replica had 4 local rows.
+  - Replica health query returned `total_replicas=2`, `active_replicas=2`,
+    `is_readonly=0`, `queue_size=0`, and `absolute_delay=0` for all replicas.
+  - Runtime script ended with `PASS runtime_2s2r_validation`.
+- Files affected:
+  - `upm-packages/clickhouse/26.3.9.8/charts/files/clickhouseTemplate.tpl`
+  - `upm-packages/clickhouse/26.3.9.8/charts/README.md`
+  - `docs/phases/phase-02-clickhouse-topology.md`
+  - `docs/design/upm-packages-clickhouse-design.md`
+  - `clickhouse/phase-02/README.md`
+  - `clickhouse/phase-02/scripts/validate-rendered-topology.py`
+  - `clickhouse/phase-02/scripts/validate-runtime-2s2r.sh`
