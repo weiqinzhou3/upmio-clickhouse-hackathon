@@ -404,7 +404,7 @@ Codex will summarize submitted evidence and append it to the log below.
     cluster secret, so remote shard connections attempted default-user
     authentication.
 - Codex remediation summary:
-  - Added `clickhouse/phase-02/scripts/sync-runtime-image-to-nodes.sh` to
+  - Added `clickhouse/sync-runtime-image-to-nodes.sh` to
     rebuild/import `localhost/upmio/clickhouse:26.3.9.8-runtime` on all
     Kubernetes nodes with the updated `service-ctl.sh`.
   - Kept GHCR/Harbor as the production-grade image distribution path; the
@@ -439,5 +439,5 @@ Codex will summarize submitted evidence and append it to the log below.
   - `docs/design/upm-packages-clickhouse-design.md`
   - `clickhouse/phase-02/README.md`
   - `clickhouse/phase-02/scripts/validate-rendered-topology.py`
-  - `clickhouse/phase-02/scripts/sync-runtime-image-to-nodes.sh`
+  - `clickhouse/sync-runtime-image-to-nodes.sh`
   - `clickhouse/phase-02/scripts/validate-runtime-2s2r.sh`

@@ -332,7 +332,7 @@ Runtime 2x2 acceptance, when claimed, must additionally validate:
 
 ```bash
 SSH_PASSWORD=<node-password> \
-  clickhouse/phase-02/scripts/sync-runtime-image-to-nodes.sh
+  clickhouse/sync-runtime-image-to-nodes.sh
 
 kubectl apply -f clickhouse/phase-02/manifests/00-namespace-project.yaml
 kubectl apply -f clickhouse/phase-02/manifests/02-clickhouse-keeper-unitset.yaml

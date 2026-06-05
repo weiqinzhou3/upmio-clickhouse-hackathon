@@ -105,7 +105,7 @@ creating or recreating ClickHouse Server Pods:
 
 ```bash
 SSH_PASSWORD=<node-password> \
-  clickhouse/phase-02/scripts/sync-runtime-image-to-nodes.sh
+  clickhouse/sync-runtime-image-to-nodes.sh
 ```
 
 This is a reproducible lab-cluster step. A production deployment should publish
