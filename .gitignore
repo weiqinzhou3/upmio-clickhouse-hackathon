@@ -1,5 +1,6 @@
 exam/
 .DS_Store
+.claude/
 compose-operator/
 unit-operator/
 upm-packages/
