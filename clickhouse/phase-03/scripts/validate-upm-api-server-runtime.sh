@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_SERVER_PORT="${API_SERVER_PORT:-${MANAGER_PORT:-18083}}"
-API_SERVER_URL="${API_SERVER_URL:-${MANAGER_URL:-http://127.0.0.1:${API_SERVER_PORT}}}"
-API_SERVER_DIR="${API_SERVER_DIR:-${BACKEND_DIR:-api-server}}"
-API_SERVER_COMMAND="${API_SERVER_COMMAND:-${MANAGER_COMMAND:-go run ./cmd/upm-api-server --config ./config/example.yaml --listen 127.0.0.1:${API_SERVER_PORT}}}"
-START_API_SERVER="${START_API_SERVER:-${START_MANAGER:-auto}}"
+API_SERVER_NS="${API_SERVER_NS:-upm-system}"
+API_SERVER_DEPLOYMENT="${API_SERVER_DEPLOYMENT:-upm-api-server}"
+API_SERVER_SERVICE="${API_SERVER_SERVICE:-upm-api-server}"
+API_SERVER_SERVICE_PORT="${API_SERVER_SERVICE_PORT:-8080}"
+API_SERVER_LOCAL_PORT="${API_SERVER_LOCAL_PORT:-18083}"
+API_SERVER_URL="${API_SERVER_URL:-http://127.0.0.1:${API_SERVER_LOCAL_PORT}}"
+START_PORT_FORWARD="${START_PORT_FORWARD:-auto}"
 
 PHASE02_NS="${PHASE02_NS:-upm-clickhouse-phase02-runtime}"
 PHASE02_CLUSTER="${PHASE02_CLUSTER:-clickhouse-phase02}"
@@ -20,13 +22,13 @@ CREATE_SERVER_SIZE="${CREATE_SERVER_SIZE:-20Gi}"
 CREATE_KEEPER_SIZE="${CREATE_KEEPER_SIZE:-10Gi}"
 CREATE_ADMIN_SECRET="${CREATE_ADMIN_SECRET:-clickhouse-phase03-secret}"
 
-api_server_pid=""
+port_forward_pid=""
 tmpdir=""
 
 cleanup() {
-  if [[ -n "$api_server_pid" ]]; then
-    kill "$api_server_pid" >/dev/null 2>&1 || true
-    wait "$api_server_pid" >/dev/null 2>&1 || true
+  if [[ -n "$port_forward_pid" ]]; then
+    kill "$port_forward_pid" >/dev/null 2>&1 || true
+    wait "$port_forward_pid" >/dev/null 2>&1 || true
   fi
   if [[ -n "$tmpdir" ]]; then
     rm -rf "$tmpdir"
@@ -67,28 +69,23 @@ wait_api_server() {
   done
 }
 
-start_api_server_if_needed() {
+connect_api_server() {
   if curl -fsS "${API_SERVER_URL}/api/v1/healthz" >/dev/null 2>&1; then
-    echo "upm-api-server: using existing ${API_SERVER_URL}"
+    echo "upm-api-server: using reachable Kubernetes service endpoint ${API_SERVER_URL}"
     return
   fi
 
-  if [[ "$START_API_SERVER" == "0" ]]; then
-    echo "ERROR: upm-api-server is not reachable and START_API_SERVER=0" >&2
+  if [[ "$START_PORT_FORWARD" == "0" ]]; then
+    echo "ERROR: upm-api-server is not reachable and START_PORT_FORWARD=0" >&2
     exit 1
   fi
 
-  if [[ ! -d "$API_SERVER_DIR" ]]; then
-    echo "ERROR: API server directory not found: ${API_SERVER_DIR}" >&2
-    exit 1
-  fi
-
-  echo "upm-api-server: starting ${API_SERVER_COMMAND}"
-  (
-    cd "$API_SERVER_DIR"
-    bash -lc "$API_SERVER_COMMAND"
-  ) >"${tmpdir}/upm-api-server.log" 2>&1 &
-  api_server_pid="$!"
+  echo "upm-api-server: port-forward svc/${API_SERVER_SERVICE} ${API_SERVER_LOCAL_PORT}:${API_SERVER_SERVICE_PORT}"
+  kubectl -n "$API_SERVER_NS" port-forward \
+    "svc/${API_SERVER_SERVICE}" \
+    "${API_SERVER_LOCAL_PORT}:${API_SERVER_SERVICE_PORT}" \
+    >"${tmpdir}/upm-api-server-port-forward.log" 2>&1 &
+  port_forward_pid="$!"
   wait_api_server
 }
 
@@ -147,6 +144,16 @@ validate_prerequisites() {
     "unitset/${PHASE02_KEEPER}" -n "$PHASE02_NS" --timeout=360s
   kubectl wait --for=jsonpath='{.status.readyUnits}'=4 \
     "unitset/${PHASE02_CLUSTER}" -n "$PHASE02_NS" --timeout=360s
+}
+
+validate_api_server_deployment() {
+  echo "== UPM API Server Kubernetes deployment =="
+  kubectl get namespace "$API_SERVER_NS" >/dev/null
+  kubectl -n "$API_SERVER_NS" get serviceaccount "$API_SERVER_SERVICE" >/dev/null
+  kubectl -n "$API_SERVER_NS" get deployment "$API_SERVER_DEPLOYMENT" >/dev/null
+  kubectl -n "$API_SERVER_NS" get service "$API_SERVER_SERVICE" >/dev/null
+  kubectl -n "$API_SERVER_NS" rollout status \
+    "deployment/${API_SERVER_DEPLOYMENT}" --timeout=180s
 }
 
 validate_healthz() {
@@ -257,7 +264,8 @@ main() {
   tmpdir="$(mktemp -d /tmp/phase03-upm-api-server-runtime.XXXXXX)"
 
   validate_prerequisites
-  start_api_server_if_needed
+  validate_api_server_deployment
+  connect_api_server
   validate_healthz
   validate_structured_error
   validate_existing_cluster_read_paths

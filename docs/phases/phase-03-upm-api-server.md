@@ -1,6 +1,6 @@
 # Phase 03: UPM API Server
 
-- Version: 0.5
+- Version: 0.6
 - Date: 2026-06-05
 - Status: Confirmed
 - Priority: P0
@@ -46,6 +46,8 @@ In scope:
 10. Operation history storage decision for MVP and future.
 11. Kubernetes deployment assets for running `upm-api-server` as a system-level
     service in `upm-system`.
+12. API reference documentation that lists every supported API, all parameters,
+    response shape, and usage examples.
 
 ## 3. Non-Goals
 
@@ -105,8 +107,13 @@ UPM API Server
   -> namespace-b / clickhouse-analytics
 ```
 
-Local binary execution remains allowed for development and fallback demos, but
-the real acceptance path is the Kubernetes-deployed service.
+Local binary deployment is not an acceptance path. The phase may run Go build
+and unit-test commands locally, but the service must be deployed and validated
+inside Kubernetes.
+
+Every new product capability implemented after this phase must be integrated
+and registered through `upm-api-server` unless the phase explicitly declares it
+as package-only, operator-only, or evidence-only work.
 
 ## 5. Create Cluster Flow
 
@@ -240,6 +247,7 @@ api-server/internal/logging/logger.go
 api-server/Dockerfile
 api-server/README.md
 clickhouse/phase-03/manifests/upm-api-server.yaml
+docs/api/upm-api-server-v1.md
 ```
 
 If the repository chooses a different API server root, preserve the same
@@ -247,9 +255,9 @@ responsibilities.
 
 ## 10. Acceptance Criteria
 
-1. `upm-api-server` starts locally without requiring Kubernetes cluster
-   connection when run in mock/config-check mode.
-2. `upm-api-server` exposes `/api/v1/healthz` or equivalent process health endpoint.
+1. `upm-api-server` runs inside Kubernetes as a Deployment/Service in
+   `upm-system`.
+2. `upm-api-server` exposes `/api/v1/healthz` or equivalent process health endpoint through the Kubernetes Service.
 3. `POST /api/v1/clusters` validates request and rejects invalid topology/storage/security fields with structured error response.
 4. `GET /api/v1/clusters` can list clusters by UPMIO labels/UnitSets when connected to a cluster.
 5. `GET /api/v1/clusters/{namespace}/{name}/resources` returns UnitSet, Unit, Pod, PVC, Service, and Endpoint summary.
@@ -259,7 +267,9 @@ responsibilities.
 9. Unit tests cover request validation and error response formatting.
 10. Kubernetes deployment assets run `upm-api-server` in `upm-system` with
     RBAC-scoped access to the required UPMIO/Kubernetes resources.
-11. `go test ./...` passes.
+11. `docs/api/upm-api-server-v1.md` lists all supported APIs, path/query/body
+    parameters, request/response examples, and usage notes.
+12. `go test ./...` passes.
 
 ## 11. Verification Commands
 
@@ -269,26 +279,29 @@ cd api-server
 go fmt ./...
 go vet ./...
 go test ./...
-go build -o ../bin/upm-api-server ./cmd/upm-api-server
+go build ./cmd/upm-api-server
 
-# Local process check
-../bin/upm-api-server --config ./config/example.yaml &
-curl -sS http://127.0.0.1:<port>/api/v1/healthz
+# Kubernetes deployment check
+cd ..
+kubectl apply -f clickhouse/phase-03/manifests/upm-api-server.yaml
+kubectl -n upm-system rollout status deploy/upm-api-server --timeout=180s
+kubectl -n upm-system get deploy/upm-api-server svc/upm-api-server sa/upm-api-server
 
 # API validation examples
-curl -sS -X POST http://127.0.0.1:<port>/api/v1/clusters \
+kubectl -n upm-system port-forward svc/upm-api-server 18083:8080
+
+curl -sS http://127.0.0.1:18083/api/v1/healthz
+
+curl -sS -X POST http://127.0.0.1:18083/api/v1/clusters \
   -H 'Content-Type: application/json' \
   -d '{"namespace":"bad namespace","name":"x"}' | jq .
 
 # Cluster-connected checks, when kubeconfig is available
-curl -sS http://127.0.0.1:<port>/api/v1/clusters | jq .
-curl -sS http://127.0.0.1:<port>/api/v1/clusters/upm-clickhouse-runtime/clickhouse-runtime/resources | jq .
-
-# Kubernetes runtime check
-kubectl apply -f ../clickhouse/phase-03/manifests/upm-api-server.yaml
-kubectl -n upm-system rollout status deploy/upm-api-server --timeout=180s
-kubectl -n upm-system port-forward svc/upm-api-server 18083:8080
 curl -sS http://127.0.0.1:18083/api/v1/clusters | jq .
+curl -sS http://127.0.0.1:18083/api/v1/clusters/upm-clickhouse-runtime/clickhouse-runtime/resources | jq .
+
+# Full runtime acceptance
+clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
 ```
 
 ## 12. Risks and Open Questions
@@ -300,6 +313,7 @@ curl -sS http://127.0.0.1:18083/api/v1/clusters | jq .
 | Auth is not implemented in MVP | Keep actor field extension points and record trusted internal assumption |
 | UPMIO API versions change | Centralize UPMIO adapter and avoid scattering dynamic client logic |
 | Name may be confused with Kubernetes API server | Use `upm-api-server` consistently and describe it as a UPM product control-plane API, not Kubernetes apiserver |
+| API surface drifts from implementation | Keep `docs/api/upm-api-server-v1.md` updated in every feature commit and validate documented examples during closeout |
 
 ## 13. Changelog
 
@@ -310,3 +324,4 @@ curl -sS http://127.0.0.1:18083/api/v1/clusters | jq .
 | 0.3 | 2026-05-27 | Added metadata and red-team fix structure |
 | 0.4 | 2026-05-27 | Restored create-cluster flow, API table, backend responsibilities, operation-history decision, and objective acceptance criteria |
 | 0.5 | 2026-06-05 | Renamed Phase 03 product surface to `upm-api-server`, clarified multi-cluster/system-level runtime, and added Kubernetes deployment acceptance |
+| 0.6 | 2026-06-05 | Removed local binary deployment from acceptance, required K8s-only runtime validation, and added API reference deliverable |

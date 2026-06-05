@@ -305,6 +305,7 @@ See:
 See:
 
 - [API Design](design/api-design.md)
+- [UPM API Server v1 API Reference](api/upm-api-server-v1.md)
 
 ### 8.6 Monitoring integration design
 
@@ -394,6 +395,7 @@ Rules:
 | Multi-shard write routing uses application Distributed tables through a stable query service | Sealed | Direct local-table writes bypass cluster routing and are only acceptable for controlled validation/admin workflows; production applications need an explicit Distributed table and stable service endpoint |
 | `upm-api-server` generated DDL must be idempotent and drift-aware | Sealed | `IF NOT EXISTS` is required but not sufficient; API-server-generated DDL is limited to database lifecycle and validation objects, and must validate existing definitions instead of silently overwriting drift |
 | One `upm-api-server` instance manages multiple database clusters | Sealed | The product control plane is not ClickHouse-specific and must be extensible to MySQL, Redis, and other database API surfaces |
+| New product capabilities register through `upm-api-server` | Sealed | User-facing and automation-facing behavior should have one product API entry point; package-only/operator-only/evidence-only work must be explicitly scoped as such |
 
 ## 14. Open Questions
 
