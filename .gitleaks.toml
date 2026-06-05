@@ -1,0 +1,11 @@
+[allowlist]
+description = "Known placeholder or upstream example secrets"
+paths = [
+  '''^clickhouse/phase-01/manifests/01-runtime-secret\.example\.yaml$''',
+  '''^unit-operator/pkg/agent/pkg/util/decrypt\.go$''',
+  '''^unit-operator/examples/unitsets/mysql-community-rpl_semi_sync-unitset\.yaml$''',
+  '''^unit-operator/examples/unitsets/postgresql-replication-unitset\.yaml$''',
+  '''^unit-operator/examples/unitsets/proxysql-clone-unitset\.yaml$''',
+  '''^upm-packages/mysql-router-community/README\.md$''',
+  '''^upm-packages/zookeeper/3\.8\.4/image/Dockerfile$''',
+]

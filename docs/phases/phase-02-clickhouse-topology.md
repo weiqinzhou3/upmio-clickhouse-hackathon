@@ -331,6 +331,9 @@ If a validation script does not exist yet, create a small deterministic script o
 Runtime 2x2 acceptance, when claimed, must additionally validate:
 
 ```bash
+SSH_PASSWORD=<node-password> \
+  clickhouse/phase-02/scripts/sync-runtime-image-to-nodes.sh
+
 kubectl apply -f clickhouse/phase-02/manifests/00-namespace-project.yaml
 kubectl apply -f clickhouse/phase-02/manifests/02-clickhouse-keeper-unitset.yaml
 kubectl apply -f clickhouse/phase-02/manifests/03-clickhouse-unitset-2s2r.yaml
@@ -356,6 +359,8 @@ Expected runtime evidence:
 
 - ClickHouse Keeper UnitSet ready count is `3/3`.
 - ClickHouse Server UnitSet ready count is `4/4`.
+- Runtime image synchronization is repeatable from repository scripts, or the
+  image is published to a registry reachable by all Kubernetes nodes.
 - `system.clusters` returns 4 rows: 2 shards x 2 replicas.
 - `getMacro('shard')` and `getMacro('replica')` match unit index mapping.
 - A validation `ReplicatedMergeTree` plus `Distributed` table can be created with

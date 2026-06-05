@@ -98,6 +98,21 @@ Expected result: no validation error for rendered ConfigMaps and PodTemplate.
 
 ## Runtime 2x2 Validation
 
+The ClickHouse runtime image must include the updated package
+`service-ctl.sh`. In this lab cluster the image is a node-local
+`localhost/upmio/clickhouse:26.3.9.8-runtime` image, so synchronize it before
+creating or recreating ClickHouse Server Pods:
+
+```bash
+SSH_PASSWORD=<node-password> \
+  clickhouse/phase-02/scripts/sync-runtime-image-to-nodes.sh
+```
+
+This is a reproducible lab-cluster step. A production deployment should publish
+the runtime image to GHCR, Harbor, or another registry reachable by every node,
+then set `global.imageRegistry` / `image.repository` / `image.tag` in the package
+values instead of relying on node-local images.
+
 Runtime validation uses:
 
 ```bash

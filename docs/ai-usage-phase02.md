@@ -396,16 +396,20 @@ Codex will summarize submitted evidence and append it to the log below.
 - Runtime findings:
   - Real 2x2 ClickHouse apply initially failed because the node runtime image
     still contained the old `service-ctl.sh`, which rejected `UNIT_COUNT=4`.
-  - After rebuilding/importing the local runtime image on all Kubernetes nodes,
-    the 4 ClickHouse Pods reached `2/2 Running`.
+  - After rebuilding/importing the local runtime image on all Kubernetes nodes
+    through a repeatable script, the 4 ClickHouse Pods reached `2/2 Running`.
   - `ON CLUSTER` DDL initially failed because the ClickHouse config lacked
     `distributed_ddl`.
   - Distributed table writes initially failed because `remote_servers` lacked a
     cluster secret, so remote shard connections attempted default-user
     authentication.
 - Codex remediation summary:
-  - Rebuilt/imported `localhost/upmio/clickhouse:26.3.9.8-runtime` on all four
+  - Added `clickhouse/phase-02/scripts/sync-runtime-image-to-nodes.sh` to
+    rebuild/import `localhost/upmio/clickhouse:26.3.9.8-runtime` on all
     Kubernetes nodes with the updated `service-ctl.sh`.
+  - Kept GHCR/Harbor as the production-grade image distribution path; the
+    node-local image sync is a reproducible lab-cluster step, not the target
+    production model.
   - Added service-scoped `distributed_ddl` to the ClickHouse package config:
     `/clickhouse/task_queue/ddl/<unitset-name>`.
   - Added runtime-derived `remote_servers` cluster secret based on existing
@@ -435,4 +439,5 @@ Codex will summarize submitted evidence and append it to the log below.
   - `docs/design/upm-packages-clickhouse-design.md`
   - `clickhouse/phase-02/README.md`
   - `clickhouse/phase-02/scripts/validate-rendered-topology.py`
+  - `clickhouse/phase-02/scripts/sync-runtime-image-to-nodes.sh`
   - `clickhouse/phase-02/scripts/validate-runtime-2s2r.sh`
