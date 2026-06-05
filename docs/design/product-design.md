@@ -11,9 +11,13 @@
 
 ## 1. Product Positioning
 
-ClickHouse Manager is a product control plane for deploying, accepting, monitoring, and diagnosing ClickHouse HA clusters on top of UPMIO.
+`upm-api-server` is the product control-plane API service for UPM-managed
+databases. The MVP starts with deploying, accepting, monitoring, and diagnosing
+ClickHouse HA clusters on top of UPMIO.
 
-It turns UPMIO lower-level Operator and package capabilities into a workflow that a DBA or platform engineer can understand and demonstrate.
+It turns UPMIO lower-level Operator and package capabilities into workflows
+that a DBA or platform engineer can understand and demonstrate. The same API
+server should later expose MySQL, Redis, and other database management surfaces.
 
 ## 2. User Roles
 
@@ -164,7 +168,7 @@ View Monitoring Summary and Day2 Diagnostics
 +--------------------------------------------------+
 | Database: [ analytics                         ]  |
 | Owner:    [ application / analytics team      ]  |
-| Access:   [ Manager account validation        ]  |
+| Access:   [ API server account validation     ]  |
 |                                                  |
 | [Dry Run] [Apply with Approval] [Verify]          |
 +--------------------------------------------------+
@@ -174,11 +178,11 @@ Rules:
 
 - This module is a future production-grade product capability.
 - User business local table and Distributed table lifecycle remains
-  DBA/application-owned, not Manager-owned.
-- Manager may show read-only table metadata for diagnostics and may create
-  reserved validation objects for healthcheck.
-- UI actions for database lifecycle must call explicit Manager APIs and show
-  dry-run, drift, approval, and verification results.
+  DBA/application-owned, not API-server-owned.
+- `upm-api-server` may show read-only table metadata for diagnostics and may
+  create reserved validation objects for healthcheck.
+- UI actions for database lifecycle must call explicit `upm-api-server` APIs
+  and show dry-run, drift, approval, and verification results.
 
 ## 6. Non-Goals
 

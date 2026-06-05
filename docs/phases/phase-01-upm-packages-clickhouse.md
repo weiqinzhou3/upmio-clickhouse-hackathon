@@ -44,7 +44,7 @@ In scope:
 
 Out of scope:
 
-- Manager Backend implementation.
+- `upm-api-server` implementation.
 - Multi-shard topology support beyond documenting future parameters.
 - New compose-operator CRD.
 - ClickHouse `GrpcCall` backup/restore/set-variable.

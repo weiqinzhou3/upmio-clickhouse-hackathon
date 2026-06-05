@@ -85,7 +85,7 @@ MVP should focus on:
 - Secret-based password initialization;
 - native Prometheus endpoint;
 - PodMonitor integration;
-- Go Manager Backend;
+- Go `upm-api-server`;
 - Day1 healthcheck;
 - read-only Day2 diagnostics;
 - narrow backup/restore validation slice through an approved Kubernetes Job path when ClickHouse GrpcCall remains unsupported.

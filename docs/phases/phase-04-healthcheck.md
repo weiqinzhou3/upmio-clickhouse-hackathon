@@ -13,7 +13,7 @@
   - ../design/data-architecture.md
   - ../design/product-design.md
   - ../architecture/clickhouse-ha-architecture.md
-  - phase-03-manager-backend.md
+  - phase-03-upm-api-server.md
 
 ## 1. Purpose
 
@@ -57,7 +57,9 @@ Required endpoints:
 | `POST` | `/api/v1/clusters/{namespace}/{name}/healthcheck` | Run healthcheck now |
 | `GET` | `/api/v1/clusters/{namespace}/{name}/healthcheck/latest` | Return latest retained report if supported |
 
-If the MVP Manager is stateless, `latest` may return `501 Not Implemented` or a clear structured error until persistence is implemented. This must match the data architecture decision.
+If the MVP `upm-api-server` is stateless, `latest` may return
+`501 Not Implemented` or a clear structured error until persistence is
+implemented. This must match the data architecture decision.
 
 ## 5. Healthcheck Report Model
 
@@ -119,7 +121,7 @@ This phase must close or refine these Master Spec Open Questions:
 
 | Question | Phase 04 output |
 |---|---|
-| Should Distributed tables be initialized by Manager or left to application users? | Healthcheck may create validation-only database/table; business Distributed tables are not auto-managed in MVP unless approved |
+| Should Distributed tables be initialized by `upm-api-server` or left to application users? | Healthcheck may create validation-only database/table; business Distributed tables are not auto-managed in MVP unless approved |
 | How should DDL idempotency be guaranteed? | All validation DDL must use idempotent patterns and isolated validation namespace/table |
 
 Minimum DDL policy:

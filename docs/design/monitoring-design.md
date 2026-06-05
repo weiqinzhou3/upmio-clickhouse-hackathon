@@ -51,9 +51,9 @@ Required:
 | Parts/merges/mutations | system tables and future Prometheus rules |
 | Keeper state | Keeper probes and future metrics |
 
-## 5. Manager Responsibilities
+## 5. UPM API Server Responsibilities
 
-Manager should:
+`upm-api-server` should:
 
 - check PodMonitor existence;
 - check metrics endpoint readiness;
@@ -75,4 +75,4 @@ Manager should:
 - PodMonitor is created for ClickHouse Server pods.
 - ClickHouse metrics endpoint returns Prometheus-format output.
 - Prometheus can discover and scrape the target when stack is installed.
-- Manager can query and summarize key metrics.
+- `upm-api-server` can query and summarize key metrics.

@@ -1,7 +1,7 @@
-# Phase 03: Manager Backend
+# Phase 03: UPM API Server
 
-- Version: 0.4
-- Date: 2026-05-27
+- Version: 0.5
+- Date: 2026-06-05
 - Status: Confirmed
 - Priority: P0
 - Owner: zqw
@@ -16,15 +16,25 @@
 
 ## 1. Purpose
 
-Implement the Go Manager Backend as the product control plane for ClickHouse deployment management, status aggregation, and later healthcheck/diagnostics APIs.
+Implement the Go `upm-api-server` as the product control-plane API service
+for UPM-managed databases. This phase exposes the first ClickHouse API surface
+for deployment management, status aggregation, and later
+healthcheck/diagnostics APIs.
 
-This phase must produce the backend skeleton and UPMIO/Kubernetes/ClickHouse integration boundaries. It must not implement every Day2 operation.
+`upm-api-server` is intentionally higher-level than a ClickHouse-specific
+control service. It must be able to manage multiple ClickHouse clusters from one
+service instance and leave room for future MySQL, Redis, and other database API
+surfaces.
+
+This phase must produce the API server skeleton and
+UPMIO/Kubernetes/ClickHouse integration boundaries. It must not implement every
+Day2 operation.
 
 ## 2. Scope
 
 In scope:
 
-1. Go backend project skeleton.
+1. Go `upm-api-server` project skeleton.
 2. HTTP API server under `/api/v1`.
 3. UPMIO adapter for `Project`, `UnitSet`, `Unit`, and future `GrpcCall` read paths.
 4. Kubernetes reader for Pod, PVC, Service, Endpoint, Secret reference existence, Event.
@@ -34,6 +44,8 @@ In scope:
 8. Structured logging with redaction.
 9. Request ID and actor extension fields.
 10. Operation history storage decision for MVP and future.
+11. Kubernetes deployment assets for running `upm-api-server` as a system-level
+    service in `upm-system`.
 
 ## 3. Non-Goals
 
@@ -49,7 +61,8 @@ Out of scope:
 
 ## 4. Backend Boundaries
 
-The Manager Backend must not replace UPMIO operators.
+The `upm-api-server` must not replace UPMIO operators or the Kubernetes API
+server.
 
 Allowed responsibilities:
 
@@ -66,6 +79,34 @@ Disallowed responsibilities:
 - Implement a new Operator loop in MVP.
 - Store ClickHouse credentials in ConfigMap or logs.
 - Treat source-code assumptions as runtime readiness.
+- Require one API server instance per ClickHouse cluster.
+
+## 4.1 Runtime Shape
+
+Production/demo runtime shape:
+
+```text
+Kubernetes cluster
+  upm-system
+    Deployment/upm-api-server
+    Service/upm-api-server
+    ServiceAccount/upm-api-server
+    Role/ClusterRole + binding
+    ConfigMap/upm-api-server-config
+```
+
+One `upm-api-server` instance must manage multiple logical clusters through
+namespaced API resources:
+
+```text
+UPM API Server
+  -> namespace-a / clickhouse-prod
+  -> namespace-a / clickhouse-test
+  -> namespace-b / clickhouse-analytics
+```
+
+Local binary execution remains allowed for development and fallback demos, but
+the real acceptance path is the Kubernetes-deployed service.
 
 ## 5. Create Cluster Flow
 
@@ -88,7 +129,8 @@ The initial cluster create API must follow this flow:
 11. Return operation result with resource references and next-step healthcheck link.
 ```
 
-The API may be synchronous for MVP if timeouts are controlled. Future implementation may introduce asynchronous operation records.
+The API may be synchronous for MVP if timeouts are controlled. Future
+implementation may introduce asynchronous operation records.
 
 ## 6. Core API Endpoints
 
@@ -148,7 +190,8 @@ Must match `design/api-design.md`:
 
 ### 7.3 OperationResult
 
-For MVP, operation result may be derived from current resource state and returned in the response. Persistent DB is not required.
+For MVP, operation result may be derived from current resource state and
+returned in the response. Persistent DB is not required.
 
 This phase must close the Master Spec Open Question:
 
@@ -166,8 +209,8 @@ Expected decision:
 Directory names may change, but responsibilities must remain clear:
 
 ```text
-backend/
-  cmd/server/              # process entrypoint
+api-server/
+  cmd/upm-api-server/      # process entrypoint
   internal/api/            # routes and handlers
   internal/model/          # request/response models
   internal/upmio/          # Project/UnitSet/Unit/GrpcCall adapter
@@ -182,49 +225,54 @@ Do not implement Phase 05 Prometheus client or Phase 06 diagnostics unless this 
 ## 9. Files Likely Changed
 
 ```text
-backend/go.mod
-backend/cmd/server/main.go
-backend/internal/api/routes.go
-backend/internal/api/cluster_handler.go
-backend/internal/model/cluster.go
-backend/internal/model/error.go
-backend/internal/upmio/client.go
-backend/internal/upmio/project.go
-backend/internal/upmio/unitset.go
-backend/internal/k8s/resources.go
-backend/internal/clickhouse/client.go
-backend/internal/logging/logger.go
-backend/Dockerfile
-backend/README.md
+api-server/go.mod
+api-server/cmd/upm-api-server/main.go
+api-server/internal/api/routes.go
+api-server/internal/api/cluster_handler.go
+api-server/internal/model/cluster.go
+api-server/internal/model/error.go
+api-server/internal/upmio/client.go
+api-server/internal/upmio/project.go
+api-server/internal/upmio/unitset.go
+api-server/internal/k8s/resources.go
+api-server/internal/clickhouse/client.go
+api-server/internal/logging/logger.go
+api-server/Dockerfile
+api-server/README.md
+clickhouse/phase-03/manifests/upm-api-server.yaml
 ```
 
-If the repository chooses a different backend root, preserve the same responsibilities.
+If the repository chooses a different API server root, preserve the same
+responsibilities.
 
 ## 10. Acceptance Criteria
 
-1. Backend starts locally without requiring Kubernetes cluster connection when run in mock/config-check mode.
-2. Backend exposes `/api/v1/healthz` or equivalent process health endpoint.
+1. `upm-api-server` starts locally without requiring Kubernetes cluster
+   connection when run in mock/config-check mode.
+2. `upm-api-server` exposes `/api/v1/healthz` or equivalent process health endpoint.
 3. `POST /api/v1/clusters` validates request and rejects invalid topology/storage/security fields with structured error response.
 4. `GET /api/v1/clusters` can list clusters by UPMIO labels/UnitSets when connected to a cluster.
 5. `GET /api/v1/clusters/{namespace}/{name}/resources` returns UnitSet, Unit, Pod, PVC, Service, and Endpoint summary.
-6. Backend never logs Secret values.
-7. Backend does not create raw Pods/PVCs/Services as product path.
+6. `upm-api-server` never logs Secret values.
+7. `upm-api-server` does not create raw Pods/PVCs/Services as product path.
 8. MVP operation history decision is documented and implemented consistently.
 9. Unit tests cover request validation and error response formatting.
-10. `go test ./...` passes.
+10. Kubernetes deployment assets run `upm-api-server` in `upm-system` with
+    RBAC-scoped access to the required UPMIO/Kubernetes resources.
+11. `go test ./...` passes.
 
 ## 11. Verification Commands
 
 ```bash
-cd backend
+cd api-server
 
 go fmt ./...
 go vet ./...
 go test ./...
-go build ./cmd/server
+go build -o ../bin/upm-api-server ./cmd/upm-api-server
 
 # Local process check
-./server --config ./config/example.yaml &
+../bin/upm-api-server --config ./config/example.yaml &
 curl -sS http://127.0.0.1:<port>/api/v1/healthz
 
 # API validation examples
@@ -235,16 +283,23 @@ curl -sS -X POST http://127.0.0.1:<port>/api/v1/clusters \
 # Cluster-connected checks, when kubeconfig is available
 curl -sS http://127.0.0.1:<port>/api/v1/clusters | jq .
 curl -sS http://127.0.0.1:<port>/api/v1/clusters/upm-clickhouse-runtime/clickhouse-runtime/resources | jq .
+
+# Kubernetes runtime check
+kubectl apply -f ../clickhouse/phase-03/manifests/upm-api-server.yaml
+kubectl -n upm-system rollout status deploy/upm-api-server --timeout=180s
+kubectl -n upm-system port-forward svc/upm-api-server 18083:8080
+curl -sS http://127.0.0.1:18083/api/v1/clusters | jq .
 ```
 
 ## 12. Risks and Open Questions
 
 | Risk / Question | Handling |
 |---|---|
-| Backend needs a DB for operation history | Do not add DB in MVP; document future model |
+| API server needs a DB for operation history | Do not add DB in MVP; document future model |
 | Cluster API calls may block | Use timeout/context for all external calls |
 | Auth is not implemented in MVP | Keep actor field extension points and record trusted internal assumption |
 | UPMIO API versions change | Centralize UPMIO adapter and avoid scattering dynamic client logic |
+| Name may be confused with Kubernetes API server | Use `upm-api-server` consistently and describe it as a UPM product control-plane API, not Kubernetes apiserver |
 
 ## 13. Changelog
 
@@ -254,3 +309,4 @@ curl -sS http://127.0.0.1:<port>/api/v1/clusters/upm-clickhouse-runtime/clickhou
 | 0.2 | 2026-05-27 | Added backend/API flow and module boundaries |
 | 0.3 | 2026-05-27 | Added metadata and red-team fix structure |
 | 0.4 | 2026-05-27 | Restored create-cluster flow, API table, backend responsibilities, operation-history decision, and objective acceptance criteria |
+| 0.5 | 2026-06-05 | Renamed Phase 03 product surface to `upm-api-server`, clarified multi-cluster/system-level runtime, and added Kubernetes deployment acceptance |

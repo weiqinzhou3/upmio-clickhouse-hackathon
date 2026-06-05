@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MANAGER_PORT="${MANAGER_PORT:-18083}"
-MANAGER_URL="${MANAGER_URL:-http://127.0.0.1:${MANAGER_PORT}}"
-BACKEND_DIR="${BACKEND_DIR:-backend}"
-MANAGER_COMMAND="${MANAGER_COMMAND:-go run ./cmd/server --config ./config/example.yaml --listen 127.0.0.1:${MANAGER_PORT}}"
-START_MANAGER="${START_MANAGER:-auto}"
+API_SERVER_PORT="${API_SERVER_PORT:-${MANAGER_PORT:-18083}}"
+API_SERVER_URL="${API_SERVER_URL:-${MANAGER_URL:-http://127.0.0.1:${API_SERVER_PORT}}}"
+API_SERVER_DIR="${API_SERVER_DIR:-${BACKEND_DIR:-api-server}}"
+API_SERVER_COMMAND="${API_SERVER_COMMAND:-${MANAGER_COMMAND:-go run ./cmd/upm-api-server --config ./config/example.yaml --listen 127.0.0.1:${API_SERVER_PORT}}}"
+START_API_SERVER="${START_API_SERVER:-${START_MANAGER:-auto}}"
 
 PHASE02_NS="${PHASE02_NS:-upm-clickhouse-phase02-runtime}"
 PHASE02_CLUSTER="${PHASE02_CLUSTER:-clickhouse-phase02}"
@@ -20,13 +20,13 @@ CREATE_SERVER_SIZE="${CREATE_SERVER_SIZE:-20Gi}"
 CREATE_KEEPER_SIZE="${CREATE_KEEPER_SIZE:-10Gi}"
 CREATE_ADMIN_SECRET="${CREATE_ADMIN_SECRET:-clickhouse-phase03-secret}"
 
-manager_pid=""
+api_server_pid=""
 tmpdir=""
 
 cleanup() {
-  if [[ -n "$manager_pid" ]]; then
-    kill "$manager_pid" >/dev/null 2>&1 || true
-    wait "$manager_pid" >/dev/null 2>&1 || true
+  if [[ -n "$api_server_pid" ]]; then
+    kill "$api_server_pid" >/dev/null 2>&1 || true
+    wait "$api_server_pid" >/dev/null 2>&1 || true
   fi
   if [[ -n "$tmpdir" ]]; then
     rm -rf "$tmpdir"
@@ -43,7 +43,7 @@ require_cmd() {
 
 api_get() {
   local path="$1"
-  curl -fsS "${MANAGER_URL}${path}"
+  curl -fsS "${API_SERVER_URL}${path}"
 }
 
 api_post_json() {
@@ -51,45 +51,45 @@ api_post_json() {
   local body="$2"
   local output="$3"
   curl -sS -o "$output" -w "%{http_code}" \
-    -X POST "${MANAGER_URL}${path}" \
+    -X POST "${API_SERVER_URL}${path}" \
     -H "Content-Type: application/json" \
     --data-binary @"$body"
 }
 
-wait_manager() {
+wait_api_server() {
   local deadline=$((SECONDS + 60))
-  until curl -fsS "${MANAGER_URL}/api/v1/healthz" >/dev/null 2>&1; do
+  until curl -fsS "${API_SERVER_URL}/api/v1/healthz" >/dev/null 2>&1; do
     if (( SECONDS > deadline )); then
-      echo "ERROR: Manager did not become ready at ${MANAGER_URL}" >&2
+      echo "ERROR: upm-api-server did not become ready at ${API_SERVER_URL}" >&2
       exit 1
     fi
     sleep 1
   done
 }
 
-start_manager_if_needed() {
-  if curl -fsS "${MANAGER_URL}/api/v1/healthz" >/dev/null 2>&1; then
-    echo "manager: using existing ${MANAGER_URL}"
+start_api_server_if_needed() {
+  if curl -fsS "${API_SERVER_URL}/api/v1/healthz" >/dev/null 2>&1; then
+    echo "upm-api-server: using existing ${API_SERVER_URL}"
     return
   fi
 
-  if [[ "$START_MANAGER" == "0" ]]; then
-    echo "ERROR: Manager is not reachable and START_MANAGER=0" >&2
+  if [[ "$START_API_SERVER" == "0" ]]; then
+    echo "ERROR: upm-api-server is not reachable and START_API_SERVER=0" >&2
     exit 1
   fi
 
-  if [[ ! -d "$BACKEND_DIR" ]]; then
-    echo "ERROR: backend directory not found: ${BACKEND_DIR}" >&2
+  if [[ ! -d "$API_SERVER_DIR" ]]; then
+    echo "ERROR: API server directory not found: ${API_SERVER_DIR}" >&2
     exit 1
   fi
 
-  echo "manager: starting ${MANAGER_COMMAND}"
+  echo "upm-api-server: starting ${API_SERVER_COMMAND}"
   (
-    cd "$BACKEND_DIR"
-    bash -lc "$MANAGER_COMMAND"
-  ) >"${tmpdir}/manager.log" 2>&1 &
-  manager_pid="$!"
-  wait_manager
+    cd "$API_SERVER_DIR"
+    bash -lc "$API_SERVER_COMMAND"
+  ) >"${tmpdir}/upm-api-server.log" 2>&1 &
+  api_server_pid="$!"
+  wait_api_server
 }
 
 assert_no_secret_leak() {
@@ -150,7 +150,7 @@ validate_prerequisites() {
 }
 
 validate_healthz() {
-  echo "== Manager healthz =="
+  echo "== UPM API Server healthz =="
   api_get "/api/v1/healthz" >"${tmpdir}/healthz.json"
   cat "${tmpdir}/healthz.json"
   echo
@@ -254,10 +254,10 @@ main() {
   require_cmd openssl
   require_cmd xxd
 
-  tmpdir="$(mktemp -d /tmp/phase03-manager-runtime.XXXXXX)"
+  tmpdir="$(mktemp -d /tmp/phase03-upm-api-server-runtime.XXXXXX)"
 
   validate_prerequisites
-  start_manager_if_needed
+  start_api_server_if_needed
   validate_healthz
   validate_structured_error
   validate_existing_cluster_read_paths
@@ -267,7 +267,7 @@ main() {
   fi
 
   echo
-  echo "PASS manager_backend_runtime_validation"
+  echo "PASS upm_api_server_runtime_validation"
 }
 
 main "$@"

@@ -11,9 +11,10 @@
 
 ## 1. Purpose
 
-This document defines the Manager Backend API design boundary.
+This document defines the `upm-api-server` API design boundary.
 
-The Manager API is a product control plane. It does not replace UPMIO operators.
+`upm-api-server` is a UPM product control plane. It does not replace UPMIO
+operators or the Kubernetes API server.
 
 ## 2. API Versioning
 
@@ -41,14 +42,14 @@ Future productization must support authentication, role-based access, and approv
 |---|---|---|
 | `POST /api/v1/clusters` | create ClickHouse cluster from logical spec | yes |
 | `GET /api/v1/clusters` | list clusters | yes |
-| `GET /api/v1/clusters/{name}` | cluster detail | yes |
-| `GET /api/v1/clusters/{name}/resources` | UPMIO/K8s resource status | yes |
-| `POST /api/v1/clusters/{name}/healthcheck` | run Day1 acceptance healthcheck | yes |
-| `GET /api/v1/clusters/{name}/healthcheck/latest` | latest healthcheck result | optional MVP |
-| `GET /api/v1/clusters/{name}/diagnostics` | Day2 read-only diagnostics | yes |
-| `GET /api/v1/clusters/{name}/metrics/summary` | Prometheus metric summary | yes |
-| `POST /api/v1/clusters/{name}/backup` | future backup operation | future |
-| `POST /api/v1/clusters/{name}/restore` | future restore operation | future |
+| `GET /api/v1/clusters/{namespace}/{name}` | cluster detail | yes |
+| `GET /api/v1/clusters/{namespace}/{name}/resources` | UPMIO/K8s resource status | yes |
+| `POST /api/v1/clusters/{namespace}/{name}/healthcheck` | run Day1 acceptance healthcheck | yes |
+| `GET /api/v1/clusters/{namespace}/{name}/healthcheck/latest` | latest healthcheck result | optional MVP |
+| `GET /api/v1/clusters/{namespace}/{name}/diagnostics` | Day2 read-only diagnostics | yes |
+| `GET /api/v1/clusters/{namespace}/{name}/metrics/summary` | Prometheus metric summary | yes |
+| `POST /api/v1/clusters/{namespace}/{name}/backup` | future backup operation | future |
+| `POST /api/v1/clusters/{namespace}/{name}/restore` | future restore operation | future |
 
 ## 4.1 Future Database Management APIs
 
@@ -58,20 +59,21 @@ explicitly implements them.
 
 | API | Purpose | MVP |
 |---|---|---|
-| `GET /api/v1/clusters/{name}/databases` | list ClickHouse databases visible to the Manager account | future |
-| `POST /api/v1/clusters/{name}/databases` | create a database with explicit user/DBA intent | future |
-| `POST /api/v1/clusters/{name}/databases/{database}/validate` | validate database existence and Manager account access | future |
+| `GET /api/v1/clusters/{namespace}/{name}/databases` | list ClickHouse databases visible to the `upm-api-server` account | future |
+| `POST /api/v1/clusters/{namespace}/{name}/databases` | create a database with explicit user/DBA intent | future |
+| `POST /api/v1/clusters/{namespace}/{name}/databases/{database}/validate` | validate database existence and `upm-api-server` account access | future |
 
 Rules:
 
 - Cluster creation must not silently create user business tables.
 - User business local table and Distributed table lifecycle remains
-  DBA/application-owned, not Manager-owned.
-- Manager may create reserved validation objects for healthcheck and may inspect
-  table metadata read-only for diagnostics.
-- Manager-generated DDL is limited to database lifecycle and validation objects.
-- Existing Manager-owned object definitions must be compared before applying
-  DDL; drift must fail instead of being hidden by `IF NOT EXISTS`.
+  DBA/application-owned, not API-server-owned.
+- `upm-api-server` may create reserved validation objects for healthcheck and
+  may inspect table metadata read-only for diagnostics.
+- API-server-generated DDL is limited to database lifecycle and validation
+  objects.
+- Existing API-server-owned object definitions must be compared before
+  applying DDL; drift must fail instead of being hidden by `IF NOT EXISTS`.
 
 ## 5. Request Model Example
 
@@ -139,7 +141,7 @@ Rules:
 
 ## 8. Implementation Boundary
 
-Manager API may:
+`upm-api-server` may:
 
 - validate requests;
 - render UPMIO/Kubernetes resources;
@@ -149,7 +151,7 @@ Manager API may:
 - query Prometheus API;
 - return healthcheck/diagnostics summaries.
 
-Manager API must not:
+`upm-api-server` must not:
 
 - reimplement UnitSet reconciliation;
 - create raw Pods/PVCs/Services as the product path;
