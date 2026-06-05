@@ -1,7 +1,7 @@
 # AGENTS.md
 
-- Version: 0.6
-- Date: 2026-06-02
+- Version: 0.7
+- Date: 2026-06-05
 - Status: Confirmed
 - Scope: Repository-wide engineering rules for AI coding agents
 
@@ -90,6 +90,23 @@ Commit message format:
 ```text
 phase-XX: concise description
 ```
+
+## 7.1 Phase Branch Merge Rules
+
+Use `main` as the stable third-party entry branch.
+
+After a phase passes implementation, validation, review, accepted repair, and
+closeout, merge that phase branch back into `main`.
+
+Keep historical `phase-XX` branches after merge as process evidence unless the
+owner explicitly asks to delete them.
+
+Start the next phase branch from updated `main`, not from an older phase branch.
+
+Do not merge an unfinished phase branch into `main`.
+
+Direct pushes to `main` are allowed only for explicit owner-approved phase
+closeout merge work or repository-management fixes.
 
 ## 8. Handling Uncertainty
 
