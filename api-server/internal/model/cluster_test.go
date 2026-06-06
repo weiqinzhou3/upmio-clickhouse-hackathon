@@ -1,6 +1,11 @@
 package model
 
-import "testing"
+import (
+	"encoding/json"
+	"reflect"
+	"strings"
+	"testing"
+)
 
 func TestCreateClusterRequestValidate(t *testing.T) {
 	valid := CreateClusterRequest{
@@ -45,5 +50,56 @@ func TestCreateClusterRequestValidate(t *testing.T) {
 				t.Fatalf("expected validation error")
 			}
 		})
+	}
+}
+
+func TestResponseModelsDoNotExposeSecurityFields(t *testing.T) {
+	responseTypes := []reflect.Type{
+		reflect.TypeOf(ClusterSummary{}),
+		reflect.TypeOf(ClusterList{}),
+		reflect.TypeOf(ReadySummary{}),
+		reflect.TypeOf(ClusterResourceRef{}),
+		reflect.TypeOf(ResourceSummary{}),
+		reflect.TypeOf(ClusterResources{}),
+		reflect.TypeOf(ErrorResponse{}),
+	}
+	for _, responseType := range responseTypes {
+		for i := 0; i < responseType.NumField(); i++ {
+			field := responseType.Field(i)
+			fieldName := strings.ToLower(field.Name)
+			jsonTag := strings.ToLower(field.Tag.Get("json"))
+			if strings.Contains(fieldName, "secret") ||
+				strings.Contains(fieldName, "password") ||
+				strings.Contains(jsonTag, "secret") ||
+				strings.Contains(jsonTag, "password") {
+				t.Fatalf("%s exposes secret-like field %s with json tag %q", responseType.Name(), field.Name, field.Tag.Get("json"))
+			}
+		}
+	}
+}
+
+func TestClusterSummaryJSONDoesNotContainSecurityMaterial(t *testing.T) {
+	summary := ClusterSummary{
+		Namespace: "upm-clickhouse",
+		Name:      "ch-demo",
+		Version:   "26.3.9.8",
+		Status:    "Running",
+		Topology:  Topology{Shards: 2, ReplicasPerShard: 2, KeeperReplicas: 3},
+		Ready:     ReadySummary{Keeper: "3/3", Server: "4/4"},
+		Resources: ClusterResourceRef{
+			Project:       "upm-clickhouse",
+			KeeperUnitSet: "ch-demo-keeper",
+			ServerUnitSet: "ch-demo",
+		},
+	}
+	data, err := json.Marshal(summary)
+	if err != nil {
+		t.Fatalf("marshal ClusterSummary: %v", err)
+	}
+	lower := strings.ToLower(string(data))
+	for _, forbidden := range []string{"security", "secret", "password"} {
+		if strings.Contains(lower, forbidden) {
+			t.Fatalf("ClusterSummary JSON must not contain %q: %s", forbidden, data)
+		}
 	}
 }

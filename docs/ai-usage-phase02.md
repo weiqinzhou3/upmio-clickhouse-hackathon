@@ -469,3 +469,48 @@ Codex will summarize submitted evidence and append it to the log below.
   - Phase 02 can be treated as closed after committing this review report and
     evidence entry.
   - Phase 03 can start after the owner confirms the Phase 03 start review.
+
+### Entry 010 - Phase 03 UPM API Server Review Closeout
+
+- Date: 2026-06-06
+- AI tools: Codex, Claude Code
+- Topic: Review Phase 03 `upm-api-server` implementation and decide whether
+  to enter Phase 04.
+- Review artifact:
+  - `docs/review/phase-03-review.md`
+- Claude Code verdict:
+  - PASS, proceed to Phase 04.
+  - All 12 Phase 03 acceptance criteria are marked PASS.
+  - Four findings are non-blocking:
+    `internal/clickhouse` is Phase 04 scaffolding, secret-leak unit tests can
+    be stronger, `POST /clusters` should later expose a polling hint, and the
+    lab-local image sync should eventually move to immutable registry images.
+- Codex disposition:
+  - Accepted F1 and added a package comment for `internal/clickhouse`, making
+    the Phase 04 healthcheck purpose explicit.
+  - Accepted F2 and strengthened tests so request secret references are not
+    logged and response models cannot add `secret`/`password` fields silently.
+  - Deferred F3 to Phase 04 because polling links belong with the healthcheck
+    state API and would otherwise change the Phase 03 response contract late.
+  - Deferred F4 to productization/Phase 04+ because the owner accepted
+    node-local image sync for the isolated lab, while the docs already record
+    the production registry/digest direction.
+- Runtime evidence from Codex:
+  - Cleaned old ClickHouse runtime namespaces and UPMIO Projects so the lab
+    retains only `upm-clickhouse-phase03-runtime`.
+  - Exposed `upm-api-server` as NodePort `30083` and validated healthz on
+    `192.168.35.201`, `.202`, `.203`, and `.204`.
+  - `GET /api/v1/clusters` returns only
+    `upm-clickhouse-phase03-runtime/clickhouse-phase03`, status `Running`,
+    Keeper `3/3`, Server `4/4`.
+  - `clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh` ends with
+    `PASS expected_structured_error` and
+    `PASS upm_api_server_runtime_validation`.
+  - `clickhouse/phase-02/scripts/validate-runtime-2s2r.sh`, pointed at the
+    Phase 03 cluster, ends with `PASS runtime_2s2r_validation`.
+- Closeout decision:
+  - Phase 03 is ready to close after committing the review report, accepted
+    repairs, evidence entry, and final quality-gate output.
+  - Per `AGENTS.md` phase branch rules, merge `phase-03` into `main` after
+    closeout so third-party reviewers can see the complete code on `main`
+    while the historical `phase-03` branch remains available.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -121,6 +122,39 @@ func TestCreateClusterDoesNotEchoSecretMaterial(t *testing.T) {
 	}
 	if strings.Contains(response.Body.String(), "ch-demo-secret") {
 		t.Fatalf("response must not echo secret reference details: %s", response.Body)
+	}
+}
+
+func TestCreateClusterDoesNotLogRequestSecretMaterial(t *testing.T) {
+	var logBuffer bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logBuffer, nil))
+	handler := NewServer(&fakeStore{
+		createErr: &model.APIError{
+			Status:  http.StatusInternalServerError,
+			Code:    "BACKEND_ERROR",
+			Message: "backend error",
+			Err:     errors.New("backend failed"),
+		},
+	}, logger, time.Second)
+	body := []byte(`{
+		"namespace":"upm-clickhouse",
+		"name":"ch-demo",
+		"version":"26.3.9.8",
+		"topology":{"shards":1,"replicasPerShard":2,"keeperReplicas":3},
+		"storage":{"className":"local-path","serverDataSize":"20Gi","keeperDataSize":"10Gi"},
+		"security":{"adminSecretRef":"phase03-secret-should-not-appear-in-logs"},
+		"monitoring":{"enabled":true}
+	}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/clusters", bytes.NewReader(body))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", response.Code, response.Body)
+	}
+	if strings.Contains(logBuffer.String(), "phase03-secret-should-not-appear-in-logs") {
+		t.Fatalf("log output must not include request secret references: %s", logBuffer.String())
 	}
 }
 
