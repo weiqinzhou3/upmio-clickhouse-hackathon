@@ -14,13 +14,18 @@ PHASE02_CLUSTER="${PHASE02_CLUSTER:-clickhouse-phase02}"
 PHASE02_KEEPER="${PHASE02_KEEPER:-clickhouse-phase02-keeper}"
 
 PHASE03_CREATE_E2E="${PHASE03_CREATE_E2E:-0}"
+PHASE03_CREATE_E2E_RESET="${PHASE03_CREATE_E2E_RESET:-0}"
 CREATE_NS="${CREATE_NS:-upm-clickhouse-phase03-runtime}"
 CREATE_CLUSTER="${CREATE_CLUSTER:-clickhouse-phase03}"
 CREATE_VERSION="${CREATE_VERSION:-26.3.9.8}"
+CREATE_SHARDS="${CREATE_SHARDS:-2}"
+CREATE_REPLICAS_PER_SHARD="${CREATE_REPLICAS_PER_SHARD:-2}"
+CREATE_KEEPER_REPLICAS="${CREATE_KEEPER_REPLICAS:-3}"
 CREATE_STORAGE_CLASS="${CREATE_STORAGE_CLASS:-local-path}"
 CREATE_SERVER_SIZE="${CREATE_SERVER_SIZE:-20Gi}"
 CREATE_KEEPER_SIZE="${CREATE_KEEPER_SIZE:-10Gi}"
 CREATE_ADMIN_SECRET="${CREATE_ADMIN_SECRET:-clickhouse-phase03-secret}"
+PHASE02_RUNTIME_VALIDATOR="${PHASE02_RUNTIME_VALIDATOR:-clickhouse/phase-02/scripts/validate-runtime-2s2r.sh}"
 
 port_forward_pid=""
 tmpdir=""
@@ -104,22 +109,18 @@ prepare_clickhouse_secret() {
 
   kubectl create namespace "$namespace" --dry-run=client -o yaml | kubectl apply -f -
 
-  local aes_key admin_password
+  local aes_key admin_password iv_hex key_hex secret_dir
   aes_key="$(openssl rand -hex 16)"
   admin_password="$(openssl rand -base64 24)"
+  iv_hex="$(openssl rand -hex 16)"
+  key_hex="$(printf "%s" "$aes_key" | od -t x1 -An -v | tr -d ' \n')"
+  secret_dir="${tmpdir}/clickhouse-secret"
+  mkdir -p "$secret_dir"
 
-  encrypt_value() {
-    local value="$1"
-    local iv
-    iv="$(openssl rand -hex 16)"
-    {
-      printf "%s" "$iv" | xxd -r -p
-      printf "%s" "$value" | openssl enc -aes-256-ctr -K "$(printf "%s" "$aes_key" | od -t x1 -An -v | tr -d ' \n')" -iv "$iv"
-    } | base64 | tr -d '\n'
-  }
-
-  local encrypted
-  encrypted="$(encrypt_value "$admin_password")"
+  printf "%s" "$iv_hex" | xxd -r -p >"${secret_dir}/CLICKHOUSE_ADMIN_PASSWORD"
+  printf "%s" "$admin_password" | openssl enc -aes-256-ctr -K "$key_hex" -iv "$iv_hex" >>"${secret_dir}/CLICKHOUSE_ADMIN_PASSWORD"
+  cp "${secret_dir}/CLICKHOUSE_ADMIN_PASSWORD" "${secret_dir}/admin"
+  cp "${secret_dir}/CLICKHOUSE_ADMIN_PASSWORD" "${secret_dir}/default"
 
   kubectl create secret generic aes-secret-key \
     -n "$namespace" \
@@ -128,9 +129,9 @@ prepare_clickhouse_secret() {
 
   kubectl create secret generic "$secret_name" \
     -n "$namespace" \
-    --from-literal=CLICKHOUSE_ADMIN_PASSWORD="$encrypted" \
-    --from-literal=admin="$encrypted" \
-    --from-literal=default="$encrypted" \
+    --from-file=CLICKHOUSE_ADMIN_PASSWORD="${secret_dir}/CLICKHOUSE_ADMIN_PASSWORD" \
+    --from-file=admin="${secret_dir}/admin" \
+    --from-file=default="${secret_dir}/default" \
     --dry-run=client -o yaml | kubectl apply -f -
 }
 
@@ -199,6 +200,12 @@ validate_existing_cluster_read_paths() {
     "${tmpdir}/clusters.json" >/dev/null
   assert_no_secret_leak "${tmpdir}/clusters.json"
 
+  api_get "/api/v1/clusters/${PHASE02_NS}/${PHASE02_CLUSTER}" >"${tmpdir}/cluster.json"
+  jq -e --arg ns "$PHASE02_NS" --arg name "$PHASE02_CLUSTER" \
+    'select((.namespace == $ns) and (.name == $name) and (.topology.shards >= 1) and (.topology.replicasPerShard >= 1))' \
+    "${tmpdir}/cluster.json" >/dev/null
+  assert_no_secret_leak "${tmpdir}/cluster.json"
+
   api_get "/api/v1/clusters/${PHASE02_NS}/${PHASE02_CLUSTER}/resources" >"${tmpdir}/resources.json"
   grep -q "$PHASE02_CLUSTER" "${tmpdir}/resources.json"
   grep -q "$PHASE02_KEEPER" "${tmpdir}/resources.json"
@@ -209,6 +216,10 @@ validate_existing_cluster_read_paths() {
 
 validate_create_e2e() {
   echo "== Optional real create E2E =="
+  if [[ "$PHASE03_CREATE_E2E_RESET" == "1" ]]; then
+    echo "reset: deleting reserved validation namespace ${CREATE_NS}"
+    kubectl delete namespace "$CREATE_NS" --ignore-not-found --wait=true --timeout=300s
+  fi
   prepare_clickhouse_secret "$CREATE_NS" "$CREATE_ADMIN_SECRET"
 
   cat >"${tmpdir}/create-cluster.json" <<JSON
@@ -217,9 +228,9 @@ validate_create_e2e() {
   "name": "${CREATE_CLUSTER}",
   "version": "${CREATE_VERSION}",
   "topology": {
-    "shards": 1,
-    "replicasPerShard": 2,
-    "keeperReplicas": 3
+    "shards": ${CREATE_SHARDS},
+    "replicasPerShard": ${CREATE_REPLICAS_PER_SHARD},
+    "keeperReplicas": ${CREATE_KEEPER_REPLICAS}
   },
   "storage": {
     "className": "${CREATE_STORAGE_CLASS}",
@@ -244,14 +255,34 @@ JSON
   fi
   assert_no_secret_leak "${tmpdir}/create-response.json"
 
-  kubectl wait --for=jsonpath='{.status.readyUnits}'=3 \
+  kubectl wait --for=jsonpath="{.status.readyUnits}"="${CREATE_KEEPER_REPLICAS}" \
     "unitset/${CREATE_CLUSTER}-keeper" -n "$CREATE_NS" --timeout=600s
-  kubectl wait --for=jsonpath='{.status.readyUnits}'=2 \
+  kubectl wait --for=jsonpath="{.status.readyUnits}"="$((CREATE_SHARDS * CREATE_REPLICAS_PER_SHARD))" \
     "unitset/${CREATE_CLUSTER}" -n "$CREATE_NS" --timeout=600s
 
   api_get "/api/v1/clusters/${CREATE_NS}/${CREATE_CLUSTER}/resources" >"${tmpdir}/created-resources.json"
   grep -q "$CREATE_CLUSTER" "${tmpdir}/created-resources.json"
   assert_no_secret_leak "${tmpdir}/created-resources.json"
+
+  echo "== Created ClickHouse database topology/read-write validation =="
+  kubectl exec -n "$CREATE_NS" "${CREATE_CLUSTER}-0" -c clickhouse -- \
+    service-ctl.sh login --query "SELECT 1"
+  kubectl exec -n "$CREATE_NS" "${CREATE_CLUSTER}-0" -c clickhouse -- \
+    service-ctl.sh login --query \
+    "SELECT throwIf(count() != $((CREATE_SHARDS * CREATE_REPLICAS_PER_SHARD)), 'system.clusters topology mismatch') FROM system.clusters WHERE cluster='upm_cluster'"
+
+  if [[ "$CREATE_SHARDS" == "2" && "$CREATE_REPLICAS_PER_SHARD" == "2" && "$CREATE_KEEPER_REPLICAS" == "3" ]]; then
+    if [[ ! -x "$PHASE02_RUNTIME_VALIDATOR" ]]; then
+      echo "ERROR: 2x2 database runtime validator not executable: ${PHASE02_RUNTIME_VALIDATOR}" >&2
+      exit 1
+    fi
+    NS="$CREATE_NS" \
+      CLICKHOUSE_UNITSET="$CREATE_CLUSTER" \
+      KEEPER_UNITSET="${CREATE_CLUSTER}-keeper" \
+      POD="${CREATE_CLUSTER}-0" \
+      DB="phase03_api_validation" \
+      "$PHASE02_RUNTIME_VALIDATOR"
+  fi
 }
 
 main() {

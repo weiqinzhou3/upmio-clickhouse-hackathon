@@ -12,6 +12,12 @@ dry-run output.
 higher-level UPM API surface that starts with ClickHouse management and can
 later expose MySQL, Redis, and other database APIs from the same system service.
 
+The complete Phase 03 API reference is maintained in
+`docs/api/upm-api-server-v1.md`.
+
+The latest real-environment acceptance evidence is maintained in
+`clickhouse/phase-03/runtime-validation.md`.
+
 ## Runtime Validation Script
 
 Use this script after `upm-api-server` is implemented:
@@ -77,9 +83,31 @@ and waits for real Keeper and ClickHouse UnitSets to become ready. It prepares
 only the credential Secret needed for the ClickHouse package; `upm-api-server`
 must still create/apply the UPMIO Project and UnitSet resources.
 
+For the default 2x2 topology, the create E2E also runs the Phase 02 database
+runtime validator against the newly API-created cluster. This validates
+`system.clusters`, macros, distributed DDL, Distributed-table write/read,
+replica synchronization, and replica health.
+
 The reserved default target is:
 
 ```text
 namespace: upm-clickhouse-phase03-runtime
 cluster:   clickhouse-phase03
+topology:  2 shards x 2 replicas + 3 Keeper
 ```
+
+The requested topology must match the ClickHouse package topology installed in
+`upm-system`. Override `CREATE_SHARDS`, `CREATE_REPLICAS_PER_SHARD`, and
+`CREATE_KEEPER_REPLICAS` only after installing a matching package topology.
+
+To repeat the create E2E from a clean reserved validation namespace:
+
+```bash
+PHASE03_CREATE_E2E=1 \
+PHASE03_CREATE_E2E_RESET=1 \
+  clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
+```
+
+`PHASE03_CREATE_E2E_RESET=1` deletes only the reserved `CREATE_NS` namespace
+before recreation. It is disabled by default and must not target a business
+namespace.

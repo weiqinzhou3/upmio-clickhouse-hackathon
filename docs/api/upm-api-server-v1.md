@@ -1,8 +1,8 @@
 # UPM API Server v1 API Reference
 
-- Version: 0.1
-- Date: 2026-06-05
-- Status: Phase 03 Target
+- Version: 0.3
+- Date: 2026-06-06
+- Status: Implemented and runtime validated
 - Owner: zqw
 - Related:
   - ../master-spec.md
@@ -85,6 +85,27 @@ Fields:
 | `details` | object | No | Field-level or resource-level diagnostic details |
 | `requestId` | string | Yes | Request correlation ID |
 
+Current error codes:
+
+| Code | HTTP | Meaning |
+|---|---:|---|
+| `INVALID_JSON` | 400 | Request body is invalid or contains multiple JSON values |
+| `VALIDATION_ERROR` | 400 | Path, query, or body parameter validation failed |
+| `CLUSTER_ALREADY_EXISTS` | 409 | Server UnitSet for the logical cluster already exists |
+| `CLUSTER_RESOURCE_CONFLICT` | 409 | Existing partial resource does not match the requested cluster |
+| `ADMIN_SECRET_NOT_FOUND` | 422 | Referenced admin Secret does not exist |
+| `ADMIN_SECRET_KEY_MISSING` | 422 | Admin Secret lacks `CLICKHOUSE_ADMIN_PASSWORD` |
+| `AES_SECRET_NOT_FOUND` | 422 | Secret `aes-secret-key` does not exist |
+| `AES_SECRET_KEY_MISSING` | 422 | Secret `aes-secret-key` lacks `AES_SECRET_KEY` |
+| `PACKAGE_VERSION_NOT_INSTALLED` | 422 | Required package ConfigMap or PodTemplate is absent |
+| `PACKAGE_TOPOLOGY_INVALID` | 422 | Installed package topology cannot be parsed |
+| `PACKAGE_TOPOLOGY_MISMATCH` | 422 | Requested topology differs from installed package topology |
+| `CLUSTER_NOT_FOUND` | 404 | Managed cluster does not exist |
+| `KUBERNETES_FORBIDDEN` | 403 | API server RBAC does not permit the operation |
+| `UPMIO_UNITSET_NOT_READY` | 504 | Keeper UnitSet did not become ready before timeout |
+| `KUBERNETES_API_ERROR` | 500 | Kubernetes API operation failed |
+| `INTERNAL_ERROR` | 500 | Unexpected internal failure |
+
 ## 5. Health API
 
 ### 5.1 Get Process Health
@@ -102,6 +123,8 @@ Path parameters: none.
 Query parameters: none.
 
 Request body: none.
+
+Success HTTP status: `200 OK`.
 
 Success response:
 
@@ -185,9 +208,21 @@ Validation rules:
 - `topology.shards` must be greater than `0`.
 - `topology.replicasPerShard` must be greater than `0`.
 - `topology.keeperReplicas` must be `3` or another explicitly supported value.
+- Requested topology must match the topology rendered by the installed
+  ClickHouse package version. A mismatch returns
+  `PACKAGE_TOPOLOGY_MISMATCH` instead of creating inconsistent UnitSets.
 - Storage sizes must be valid Kubernetes quantities.
-- `security.adminSecretRef` must reference an existing Secret unless the phase
-  explicitly enables generated-secret behavior.
+- `security.adminSecretRef` must reference an existing Secret containing
+  `CLICKHOUSE_ADMIN_PASSWORD`.
+- The target namespace must also contain Secret `aes-secret-key` with key
+  `AES_SECRET_KEY`.
+- If the target namespace does not exist, `upm-api-server` creates it first and
+  then returns the missing-Secret error. Add the required Secrets and retry the
+  same request.
+- `upm-api-server` checks Secret/key existence but never returns or logs Secret
+  values.
+
+Success HTTP status: `202 Accepted`.
 
 Success response:
 
@@ -196,7 +231,7 @@ Success response:
   "requestId": "req-xxxxxxxx",
   "namespace": "upm-clickhouse-runtime",
   "name": "clickhouse-runtime",
-  "status": "Running",
+  "status": "Provisioning",
   "resources": {
     "project": "upm-clickhouse-runtime",
     "keeperUnitSet": "clickhouse-runtime-keeper",
@@ -240,6 +275,8 @@ Query parameters:
 | `namespace` | string | No | Limit results to one namespace |
 
 Request body: none.
+
+Success HTTP status: `200 OK`.
 
 Success response:
 
@@ -298,6 +335,8 @@ Query parameters: none.
 
 Request body: none.
 
+Success HTTP status: `200 OK`.
+
 Success response:
 
 ```json
@@ -346,6 +385,8 @@ Path parameters:
 Query parameters: none.
 
 Request body: none.
+
+Success HTTP status: `200 OK`.
 
 Success response:
 

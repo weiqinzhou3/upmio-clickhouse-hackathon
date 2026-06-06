@@ -1,7 +1,7 @@
 # Phase 03: UPM API Server
 
-- Version: 0.6
-- Date: 2026-06-05
+- Version: 0.8
+- Date: 2026-06-06
 - Status: Confirmed
 - Priority: P0
 - Owner: zqw
@@ -200,13 +200,13 @@ Must match `design/api-design.md`:
 For MVP, operation result may be derived from current resource state and
 returned in the response. Persistent DB is not required.
 
-This phase must close the Master Spec Open Question:
+This phase closes the Master Spec Open Question:
 
 | Question | Required Phase 03 output |
 |---|---|
-| Does operation history require persistent storage? | Decide MVP behavior and future storage option |
+| Does operation history require persistent storage? | MVP does not add an independent database; future productization may add persistent audit history |
 
-Expected decision:
+Decision:
 
 - MVP: no independent DB; operation result is returned and logs/events are used for troubleshooting.
 - Future: persistent operation history can be introduced after API/approval model is stable.
@@ -325,3 +325,5 @@ clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
 | 0.4 | 2026-05-27 | Restored create-cluster flow, API table, backend responsibilities, operation-history decision, and objective acceptance criteria |
 | 0.5 | 2026-06-05 | Renamed Phase 03 product surface to `upm-api-server`, clarified multi-cluster/system-level runtime, and added Kubernetes deployment acceptance |
 | 0.6 | 2026-06-05 | Removed local binary deployment from acceptance, required K8s-only runtime validation, and added API reference deliverable |
+| 0.7 | 2026-06-06 | Sealed operation-history decision and required create API package-topology/Secret prerequisite checks |
+| 0.8 | 2026-06-06 | Recorded implemented Kubernetes-only API server and successful real create-cluster/database E2E validation |

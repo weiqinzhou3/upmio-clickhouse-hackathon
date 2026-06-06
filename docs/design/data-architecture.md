@@ -26,7 +26,7 @@ persistence strategy, and data flow for the `upm-api-server` MVP and roadmap.
 | Metrics | Prometheus | Prometheus TSDB | queried through Prometheus API |
 | Healthcheck reports | `upm-api-server` | generated result; persistence minimal in MVP | returned by API, latest-report persistence can be added later |
 | Diagnostics outputs | `upm-api-server` | generated from SQL/K8s/Prometheus | returned by API, optional future persistence |
-| Operation history | `upm-api-server` / future audit store | TBD | not mandatory in MVP |
+| Operation history | `upm-api-server` / future audit store | Structured logs and current Kubernetes state in MVP | no independent history database in MVP |
 
 ## 3. MVP Storage Decision
 
