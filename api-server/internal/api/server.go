@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/weiqinzhou3/upmio-clickhouse-hackathon/api-server/internal/model"
@@ -23,16 +24,26 @@ type Server struct {
 	store   platform.Store
 	logger  *slog.Logger
 	timeout time.Duration
+
+	latestMu sync.RWMutex
+	latest   map[string]model.HealthcheckReport
 }
 
 func NewServer(store platform.Store, logger *slog.Logger, timeout time.Duration) http.Handler {
-	server := &Server{store: store, logger: logger, timeout: timeout}
+	server := &Server{
+		store:   store,
+		logger:  logger,
+		timeout: timeout,
+		latest:  map[string]model.HealthcheckReport{},
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/healthz", server.healthz)
 	mux.HandleFunc("POST /api/v1/clusters", server.createCluster)
 	mux.HandleFunc("GET /api/v1/clusters", server.listClusters)
 	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}", server.getCluster)
 	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/resources", server.getClusterResources)
+	mux.HandleFunc("POST /api/v1/clusters/{namespace}/{name}/healthcheck", server.runHealthcheck)
+	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/healthcheck/latest", server.getLatestHealthcheck)
 	return server.middleware(mux)
 }
 
@@ -155,6 +166,49 @@ func (s *Server) getClusterResources(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resources)
 }
 
+func (s *Server) runHealthcheck(w http.ResponseWriter, r *http.Request) {
+	namespace, name := r.PathValue("namespace"), r.PathValue("name")
+	if err := model.ValidateClusterIdentity(namespace, name); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	report, err := s.store.RunHealthcheck(r.Context(), namespace, name)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	report.RequestID = requestID(r.Context())
+
+	s.latestMu.Lock()
+	s.latest[healthcheckKey(namespace, name)] = report
+	s.latestMu.Unlock()
+
+	writeJSON(w, http.StatusOK, report)
+}
+
+func (s *Server) getLatestHealthcheck(w http.ResponseWriter, r *http.Request) {
+	namespace, name := r.PathValue("namespace"), r.PathValue("name")
+	if err := model.ValidateClusterIdentity(namespace, name); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+
+	s.latestMu.RLock()
+	report, exists := s.latest[healthcheckKey(namespace, name)]
+	s.latestMu.RUnlock()
+	if !exists {
+		s.writeError(w, r, &model.APIError{
+			Status:  http.StatusNotFound,
+			Code:    "HEALTHCHECK_REPORT_NOT_FOUND",
+			Message: "latest healthcheck report not found",
+			Details: map[string]any{"namespace": namespace, "name": name},
+		})
+		return
+	}
+	report.RequestID = requestID(r.Context())
+	writeJSON(w, http.StatusOK, report)
+}
+
 func (s *Server) writeValidationError(w http.ResponseWriter, r *http.Request, err error) {
 	s.writeError(w, r, &model.APIError{
 		Status:  http.StatusBadRequest,
@@ -205,4 +259,8 @@ func newRequestID() string {
 		return "req-unknown"
 	}
 	return "req-" + hex.EncodeToString(data[:])
+}
+
+func healthcheckKey(namespace, name string) string {
+	return namespace + "/" + name
 }

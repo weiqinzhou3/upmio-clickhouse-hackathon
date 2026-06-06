@@ -311,10 +311,10 @@ kubectl exec -n upm-clickhouse-phase03-runtime clickhouse-phase03-0 \
   "SELECT database, table, is_readonly, is_session_expired, absolute_delay, queue_size FROM system.replicas FORMAT Vertical"
 
 kubectl exec -n upm-clickhouse-phase03-runtime clickhouse-phase03-keeper-0 \
-  -c clickhouse-keeper -- bash -lc 'echo ruok | nc 127.0.0.1 9181'
+  -c clickhouse-keeper -- bash -lc 'exec 3<>/dev/tcp/127.0.0.1/9181; printf ruok >&3; timeout 2 cat <&3'
 
 kubectl exec -n upm-clickhouse-phase03-runtime clickhouse-phase03-keeper-0 \
-  -c clickhouse-keeper -- bash -lc 'echo mntr | nc 127.0.0.1 9181'
+  -c clickhouse-keeper -- bash -lc 'exec 3<>/dev/tcp/127.0.0.1/9181; printf mntr >&3; timeout 2 cat <&3'
 
 kubectl exec -n upm-clickhouse-phase03-runtime clickhouse-phase03-0 \
   -c clickhouse -- curl -fsS --max-time 5 http://127.0.0.1:9363/metrics | head
@@ -329,7 +329,7 @@ kubectl exec -n upm-clickhouse-phase03-runtime clickhouse-phase03-0 \
 | `ON CLUSTER` unavailable | The write/read validation probe fails; do not report PASS |
 | Metrics endpoint unavailable | Report `WARN` in Phase 04; Prometheus integration remains Phase 05 |
 | Latest report lost after API server restart | Return structured `404 HEALTHCHECK_REPORT_NOT_FOUND`; persistent report storage is future scope |
-| ClickHouse password handling | Read credentials per request from Kubernetes Secret; do not store credential values in report/logs |
+| ClickHouse password handling | Execute SQL through the in-Pod `service-ctl.sh login` path; do not copy credential values into API responses or logs |
 
 ## 12. Changelog
 

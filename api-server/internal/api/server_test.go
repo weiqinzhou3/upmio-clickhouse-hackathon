@@ -20,6 +20,7 @@ type fakeStore struct {
 	clusters  []model.ClusterSummary
 	resources model.ClusterResources
 	createErr error
+	healthErr error
 }
 
 func (f *fakeStore) CreateCluster(_ context.Context, request model.CreateClusterRequest) (model.ClusterSummary, error) {
@@ -43,6 +44,16 @@ func (f *fakeStore) GetCluster(_ context.Context, namespace, name string) (model
 
 func (f *fakeStore) GetClusterResources(context.Context, string, string) (model.ClusterResources, error) {
 	return f.resources, nil
+}
+
+func (f *fakeStore) RunHealthcheck(_ context.Context, namespace, name string) (model.HealthcheckReport, error) {
+	if f.healthErr != nil {
+		return model.HealthcheckReport{}, f.healthErr
+	}
+	report := model.NewHealthcheckReport(namespace, name)
+	report.AddCheck("kubernetes_resources", model.HealthStatusPass, model.HealthSeverityCritical, "resources are ready", nil, time.Now())
+	report.Finalize()
+	return report, nil
 }
 
 func TestHealthz(t *testing.T) {
@@ -170,6 +181,44 @@ func TestListClustersReturnsEmptyArray(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), `"items":[]`) {
 		t.Fatalf("expected empty array: %s", response.Body)
+	}
+}
+
+func TestRunHealthcheckStoresLatestReport(t *testing.T) {
+	handler := newTestServer(&fakeStore{})
+	runRequest := httptest.NewRequest(http.MethodPost, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/healthcheck", nil)
+	runResponse := httptest.NewRecorder()
+
+	handler.ServeHTTP(runResponse, runRequest)
+
+	if runResponse.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", runResponse.Code, runResponse.Body)
+	}
+
+	latestRequest := httptest.NewRequest(http.MethodGet, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/healthcheck/latest", nil)
+	latestResponse := httptest.NewRecorder()
+	handler.ServeHTTP(latestResponse, latestRequest)
+
+	if latestResponse.Code != http.StatusOK {
+		t.Fatalf("expected latest 200, got %d: %s", latestResponse.Code, latestResponse.Body)
+	}
+	if !strings.Contains(latestResponse.Body.String(), `"status":"PASS"`) {
+		t.Fatalf("unexpected latest report: %s", latestResponse.Body)
+	}
+}
+
+func TestGetLatestHealthcheckReturnsNotFoundBeforeRun(t *testing.T) {
+	handler := newTestServer(&fakeStore{})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/healthcheck/latest", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", response.Code, response.Body)
+	}
+	if !strings.Contains(response.Body.String(), `"code":"HEALTHCHECK_REPORT_NOT_FOUND"`) {
+		t.Fatalf("unexpected response: %s", response.Body)
 	}
 }
 
