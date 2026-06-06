@@ -11,27 +11,29 @@
 
 ## 1. Purpose
 
-This document defines the top-level data domains, ownership boundaries, persistence strategy, and data flow for the ClickHouse Manager MVP and roadmap.
+This document defines the top-level data domains, ownership boundaries,
+persistence strategy, and data flow for the `upm-api-server` MVP and roadmap.
 
 ## 2. Data Domains
 
 | Data Domain | Owner | Storage / Source of Truth | MVP Handling |
 |---|---|---|---|
-| User request data | Manager API | request payload | validated and converted into UPMIO/K8s resources |
+| User request data | `upm-api-server` API | request payload | validated and converted into UPMIO/K8s resources |
 | UPMIO control-plane state | Kubernetes + UPMIO | Kubernetes etcd through CRDs | read from Project, UnitSet, Unit, PodMonitor, future GrpcCall |
 | Kubernetes native state | Kubernetes | Kubernetes etcd | read Pods, PVCs, Services, Endpoints, Secrets metadata, Events |
-| ClickHouse business data | ClickHouse | ClickHouse PVCs and tables | not managed by Manager except validation probes |
+| ClickHouse business data | ClickHouse | ClickHouse PVCs and tables | not managed by `upm-api-server` except validation probes |
 | Keeper metadata | ClickHouse Keeper | Keeper PVC/state | checked through Keeper health probes and ClickHouse system state |
 | Metrics | Prometheus | Prometheus TSDB | queried through Prometheus API |
-| Healthcheck reports | Manager | generated result; persistence minimal in MVP | returned by API, latest-report persistence can be added later |
-| Diagnostics outputs | Manager | generated from SQL/K8s/Prometheus | returned by API, optional future persistence |
-| Operation history | Manager / future audit store | TBD | not mandatory in MVP |
+| Healthcheck reports | `upm-api-server` | generated result; persistence minimal in MVP | returned by API, latest-report persistence can be added later |
+| Diagnostics outputs | `upm-api-server` | generated from SQL/K8s/Prometheus | returned by API, optional future persistence |
+| Operation history | `upm-api-server` / future audit store | Structured logs and current Kubernetes state in MVP | no independent history database in MVP |
 
 ## 3. MVP Storage Decision
 
-MVP Manager should be stateless or near-stateless.
+MVP `upm-api-server` should be stateless or near-stateless.
 
-MVP does not introduce an independent database such as PostgreSQL, SQLite, or MySQL. The Manager reads authoritative state from:
+MVP does not introduce an independent database such as PostgreSQL, SQLite, or
+MySQL. `upm-api-server` reads authoritative state from:
 
 - Kubernetes API;
 - UPMIO CRDs;
@@ -46,7 +48,7 @@ If a latest healthcheck report must be returned after execution, the MVP may kee
 User / UI / API Client
         |
         v
-ClickHouse Manager API
+UPM API Server
         |
         +--> Kubernetes API / UPMIO CRDs
         |       Project / UnitSet / Unit / PodMonitor / future GrpcCall

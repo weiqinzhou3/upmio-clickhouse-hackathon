@@ -13,7 +13,7 @@
   - ../design/day1-day2-requirement-coverage.md
   - ../architecture/clickhouse-ha-architecture.md
   - phase-02-clickhouse-topology.md
-  - phase-03-manager-backend.md
+  - phase-03-upm-api-server.md
   - phase-06-day2-diagnostics.md
 
 ## 1. Purpose

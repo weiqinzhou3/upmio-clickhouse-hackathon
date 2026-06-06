@@ -96,7 +96,7 @@ Pros:
 Cons:
 
 - Cross-UnitSet `remote_servers` generation becomes more complex.
-- Manager or future topology controller must coordinate multiple UnitSets.
+- `upm-api-server` or future topology controller must coordinate multiple UnitSets.
 - Higher object count and operational complexity.
 
 Recommendation:
@@ -193,25 +193,25 @@ The exact path must be documented and used consistently by examples and healthch
 Decision:
 
 - MVP / hackathon stage:
-  - Manager may initialize only deterministic validation Distributed tables used
+  - `upm-api-server` may initialize only deterministic validation Distributed tables used
     by healthcheck.
-  - Manager must not automatically create, alter, or drop user business
+  - `upm-api-server` must not automatically create, alter, or drop user business
     Distributed tables during cluster creation.
   - Package topology rendering must not imply ownership of business schema.
 - Future production behavior:
-  - Manager should expose controlled database management APIs and UI workflows.
+  - `upm-api-server` should expose controlled database management APIs and UI workflows.
   - User business local table and Distributed table lifecycle remains
-    DBA/application-owned and is not a Manager product responsibility.
-  - Manager may provide table DDL examples, topology/write-routing guidance, and
+    DBA/application-owned and is not an API server product responsibility.
+  - `upm-api-server` may provide table DDL examples, topology/write-routing guidance, and
     read-only metadata/diagnostics, but must not create, alter, or drop business
     tables.
-  - Manager-owned validation objects must use reserved names and must be
+  - API-server-owned validation objects must use reserved names and must be
     idempotent, drift-checked, and safe to recreate.
 
 Rationale:
 
 Distributed tables encode business schema and sharding semantics. Production
-Manager should manage cluster/database operations and validation objects, not
+`upm-api-server` should manage cluster/database operations and validation objects, not
 take over application table lifecycle.
 
 ### 5.6 Multi-shard write routing decision
@@ -224,7 +224,7 @@ Decision:
   than hard-coding individual Pod or shard endpoints.
 - Direct writes to local `ReplicatedMergeTree` tables are reserved for
   controlled validation, diagnostics, bootstrap, or DBA-admin workflows.
-- The Manager should expose topology/service guidance and health evidence; it
+- `upm-api-server` should expose topology/service guidance and health evidence; it
   should not hide business write-routing decisions behind implicit table
   creation.
 
@@ -241,18 +241,18 @@ Decision:
 - Validation SQL must be idempotent and deterministic.
 - Use `IF NOT EXISTS` where ClickHouse supports it.
 - `IF NOT EXISTS` alone is not sufficient for production-grade safety.
-- Manager-generated DDL is limited to database lifecycle and Manager-owned
+- API-server-generated DDL is limited to database lifecycle and API-server-owned
   validation objects.
-- Manager-generated DDL must be treated as desired state:
+- API-server-generated DDL must be treated as desired state:
   - record target cluster, database, validation object name, engine, and
-    checksum/version in a future Manager/audit store or approved Kubernetes
+    checksum/version in a future `upm-api-server`/audit store or approved Kubernetes
     metadata path;
-  - compare existing Manager-owned object definitions before applying DDL;
-  - fail with a drift error if an existing Manager-owned object differs from
+  - compare existing API-server-owned object definitions before applying DDL;
+  - fail with a drift error if an existing API-server-owned object differs from
     the requested definition;
   - avoid destructive changes unless a future explicit approval workflow exists.
 - `ON CLUSTER` may be used only when distributed DDL configuration is rendered
-  and validated. Without distributed DDL, Manager must use controlled
+  and validated. Without distributed DDL, `upm-api-server` must use controlled
   per-instance execution and verify convergence.
 - Phase 02 package rendering must include a service-scoped distributed DDL queue
   path so runtime 2x2 validation can use `ON CLUSTER` safely:
@@ -375,7 +375,7 @@ Expected runtime evidence:
 | Single UnitSet becomes hard to scale by shard | Keep Option B and future CRD path documented |
 | Distributed DDL is not configured | Fixed in Phase 02 by rendering a service-scoped `distributed_ddl` queue path |
 | Multi-shard runtime testing exceeds hackathon time | Runtime 2x2 is now required before claiming Phase 02 acceptance |
-| Application write routing requires business schema knowledge | Manager provides validation tables and guidance; user business local/Distributed table lifecycle remains DBA/application-owned |
+| Application write routing requires business schema knowledge | `upm-api-server` provides validation tables and guidance; user business local/Distributed table lifecycle remains DBA/application-owned |
 | Distributed table remote authentication fails | Fixed in Phase 02 by rendering a runtime-derived `remote_servers` cluster secret |
 
 ## 10. Changelog

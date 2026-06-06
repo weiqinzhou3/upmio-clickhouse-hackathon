@@ -1,6 +1,6 @@
 # AGENTS.md
 
-- Version: 0.7
+- Version: 0.8
 - Date: 2026-06-05
 - Status: Confirmed
 - Scope: Repository-wide engineering rules for AI coding agents
@@ -37,6 +37,19 @@ Implement only what the current phase spec requires.
 Do not add adjacent features, refactors, dashboards, CRDs, APIs, SQL operations, scripts, or dependencies unless the phase spec explicitly includes them.
 
 If a useful improvement is found outside scope, record it as Future Work or Open Question.
+
+## 4.1 UPM API Server Integration Rule
+
+`upm-api-server` is the product API entry point.
+
+Any new product feature that exposes user-facing or automation-facing behavior
+must be integrated and registered in `upm-api-server` unless the current phase
+explicitly defines the work as package-only, operator-only, evidence-only, or
+internal implementation-only.
+
+When an API is added or changed, update the repository API reference in the
+same phase so every supported endpoint, parameter, request body, response
+shape, and usage example is documented.
 
 ## 5. Safety Rules
 

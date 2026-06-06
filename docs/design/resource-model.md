@@ -10,7 +10,8 @@
 
 ## 1. Purpose
 
-This document defines how the ClickHouse Manager models clusters using UPMIO and Kubernetes resources.
+This document defines how `upm-api-server` models ClickHouse clusters using
+UPMIO and Kubernetes resources.
 
 ## 2. MVP Resource Set
 
@@ -28,9 +29,9 @@ This document defines how the ClickHouse Manager models clusters using UPMIO and
 | PodMonitor | Prometheus Operator CRD | unit-operator | metrics discovery |
 | GrpcCall | UPMIO CRD | unit-operator | future Day2 tasks; not MVP dependency |
 
-## 3. Manager Logical Model
+## 3. API Server Logical Model
 
-The Manager may expose a higher-level logical model such as:
+`upm-api-server` may expose a higher-level logical model such as:
 
 ```yaml
 cluster:
@@ -56,17 +57,17 @@ This logical model is not necessarily a new Kubernetes CRD in MVP. It can be API
 
 | Logical Concept | MVP Mapping | Future Mapping |
 |---|---|---|
-| Cluster | labels + Manager aggregation | possible ClickHouseCluster CRD |
+| Cluster | labels + API server aggregation | possible ClickHouseCluster CRD |
 | Keeper ensemble | `UnitSet(type=clickhouse-keeper)` | same, or topology CRD-owned |
 | ClickHouse servers | `UnitSet(type=clickhouse)` | topology-aware UnitSets |
 | Replica | Unit index within topology | explicit replica model |
 | Shard | package template and future topology params | topology CRD |
-| Healthcheck result | Manager generated report | persisted report object/audit store |
+| Healthcheck result | API-server-generated report | persisted report object/audit store |
 | Backup task | Future | GrpcCall or dedicated task model |
 
 ## 5. Status Read Path
 
-Manager should read:
+`upm-api-server` should read:
 
 - `UnitSet.status` for desired/current/ready units;
 - `Unit.status` for phase, node, pod IPs, PVCs, config sync;
@@ -82,7 +83,7 @@ Manager should read:
 - Passwords must be in Secret, not ConfigMap.
 - Reports must redact credentials.
 - Example YAML must use placeholders.
-- Manager must not log Secret values.
+- `upm-api-server` must not log Secret values.
 
 ## 7. Non-Goals
 

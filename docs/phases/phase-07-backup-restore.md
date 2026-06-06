@@ -11,7 +11,7 @@
   - ../design/api-design.md
   - ../design/data-architecture.md
   - ../runtime/06-clickhouse-grpccall-validation.md
-  - phase-03-manager-backend.md
+  - phase-03-upm-api-server.md
 
 ## 1. Purpose
 
@@ -25,7 +25,7 @@ must not drop them just because the installed `unit-operator:v1.1.0` rejects
 Primary path:
 
 - Implement backup/restore through an explicitly approved Kubernetes task path,
-  such as a Manager-created Kubernetes `Job`.
+  such as a `upm-api-server`-created Kubernetes `Job`.
 - The Job must use Kubernetes Secret references for ClickHouse credentials and
   backup storage credentials.
 - Restore validation must restore into a validation database/table by default
@@ -79,12 +79,12 @@ Out of scope unless explicitly approved:
 
 MVP / hackathon path:
 
-- Manager creates a Kubernetes `Job` in the target namespace.
+- `upm-api-server` creates a Kubernetes `Job` in the target namespace.
 - The Job runs a controlled ClickHouse backup/restore command.
 - Credentials are injected through `secretRef` and never through plaintext
   request fields, ConfigMaps, logs, or reports.
 - Job status, Pod phase, exit code, and redacted logs form the task evidence.
-- The Manager returns structured task status and an evidence reference.
+- `upm-api-server` returns structured task status and an evidence reference.
 
 Candidate implementations:
 
@@ -236,7 +236,7 @@ If restore is not executed, record the reason explicitly.
 | Risk / Question | Handling |
 |---|---|
 | Current operator image rejects clickhouse GrpcCall | Use Kubernetes Job path for MVP; keep GrpcCall repair as timeboxed spike |
-| Job path bypasses UPMIO task model expectations | Keep it Manager-created, namespace-scoped, SecretRef-based, and documented as approved alternative task path |
+| Job path bypasses UPMIO task model expectations | Keep it `upm-api-server`-created, namespace-scoped, SecretRef-based, and documented as approved alternative task path |
 | Restore is destructive | Require human approval and validation target |
 | Object storage unavailable | Use documented skip or local test backend only |
 | Credential leakage | Use Secret refs and redaction only |

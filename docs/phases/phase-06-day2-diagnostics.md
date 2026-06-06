@@ -12,7 +12,7 @@
   - ../design/api-design.md
   - ../design/data-architecture.md
   - ../architecture/clickhouse-ha-architecture.md
-  - phase-03-manager-backend.md
+  - phase-03-upm-api-server.md
   - phase-04-healthcheck.md
 
 ## 1. Purpose
