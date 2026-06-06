@@ -1,7 +1,7 @@
 # Data Architecture
 
-- Version: 0.2
-- Date: 2026-05-27
+- Version: 0.3
+- Date: 2026-06-06
 - Status: Sealed
 - Owner: zqw
 - Related:
@@ -24,7 +24,7 @@ persistence strategy, and data flow for the `upm-api-server` MVP and roadmap.
 | ClickHouse business data | ClickHouse | ClickHouse PVCs and tables | not managed by `upm-api-server` except validation probes |
 | Keeper metadata | ClickHouse Keeper | Keeper PVC/state | checked through Keeper health probes and ClickHouse system state |
 | Metrics | Prometheus | Prometheus TSDB | queried through Prometheus API |
-| Healthcheck reports | `upm-api-server` | generated result; persistence minimal in MVP | returned by API, latest-report persistence can be added later |
+| Healthcheck reports | `upm-api-server` | generated result; in-memory latest cache in MVP | returned by API; persistent report history is future scope |
 | Diagnostics outputs | `upm-api-server` | generated from SQL/K8s/Prometheus | returned by API, optional future persistence |
 | Operation history | `upm-api-server` / future audit store | Structured logs and current Kubernetes state in MVP | no independent history database in MVP |
 
@@ -40,7 +40,10 @@ MySQL. `upm-api-server` reads authoritative state from:
 - ClickHouse SQL system tables;
 - Prometheus API.
 
-If a latest healthcheck report must be returned after execution, the MVP may keep it in memory or implement minimal persistence only when required by a phase. Productization may introduce a formal report/audit store.
+Phase 04 uses an in-memory latest-report cache keyed by cluster identity. If no
+report exists in the current API server process, `GET latest` returns a
+structured not-found response. Productization may introduce a formal
+report/audit store.
 
 ## 4. Data Flow
 
@@ -87,6 +90,6 @@ Healthcheck Report / Diagnostics Summary / Operation Result
 
 | Question | Resolution Phase |
 |---|---|
-| Does operation history need a persistent database before demo? | Phase 03 / productization |
-| Should latest healthcheck report be persisted in Kubernetes? | Phase 04 |
+| Does operation history need a persistent database before demo? | Resolved in Phase 03: no independent database in MVP; persistent audit history is future scope |
+| Should latest healthcheck report be persisted in Kubernetes? | Resolved in Phase 04: no Kubernetes persistence in MVP; use in-memory latest cache |
 | What retention policy is required for audit reports? | Future |
