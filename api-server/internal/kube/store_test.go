@@ -2,16 +2,32 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/weiqinzhou3/upmio-clickhouse-hackathon/api-server/internal/model"
+	promclient "github.com/weiqinzhou3/upmio-clickhouse-hackathon/api-server/internal/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+type fakePrometheusQuerier struct {
+	results map[string][]promclient.Sample
+	errors  map[string]error
+	queries []string
+}
+
+func (f *fakePrometheusQuerier) Query(_ context.Context, query string) ([]promclient.Sample, error) {
+	f.queries = append(f.queries, query)
+	if err := f.errors[query]; err != nil {
+		return nil, err
+	}
+	return f.results[query], nil
+}
 
 func TestUnitSetRendering(t *testing.T) {
 	request := model.CreateClusterRequest{
@@ -217,5 +233,45 @@ func TestCheckServicesEndpointsRequiresClickHousePorts(t *testing.T) {
 	store.checkServicesEndpoints(context.Background(), &report, "upm-clickhouse", "clickhouse-demo")
 	if report.Checks[0].Status != model.HealthStatusFail {
 		t.Fatalf("expected missing metrics service port to fail: %#v", report.Checks[0])
+	}
+}
+
+func TestMetricSamplesUsesMetricNameAndRemovesInternalLabel(t *testing.T) {
+	samples := metricSamples([]promclient.Sample{{
+		Metric: map[string]string{
+			"__name__":  "ClickHouseProfileEvents_Query",
+			"namespace": "upm-clickhouse",
+			"pod":       "clickhouse-demo-0",
+			"instance":  "10.0.0.1:9363",
+		},
+		Value: 42,
+	}}, "")
+
+	if len(samples) != 1 || samples[0].Name != "ClickHouseProfileEvents_Query" || samples[0].Value != 42 {
+		t.Fatalf("unexpected samples: %#v", samples)
+	}
+	if _, exists := samples[0].Labels["__name__"]; exists {
+		t.Fatalf("internal Prometheus metric label must not be returned: %#v", samples[0].Labels)
+	}
+	if _, exists := samples[0].Labels["instance"]; exists {
+		t.Fatalf("unstable infrastructure labels must not be returned: %#v", samples[0].Labels)
+	}
+}
+
+func TestFirstAvailableMetricsUsesFallbackOnlyWhenNeeded(t *testing.T) {
+	querier := &fakePrometheusQuerier{
+		results: map[string][]promclient.Sample{
+			"fallback": {
+				{Metric: map[string]string{"pod": "clickhouse-demo-0"}, Value: 10},
+			},
+		},
+		errors: map[string]error{"primary": errors.New("primary unavailable")},
+	}
+	samples, err := firstAvailableMetrics(context.Background(), querier, "primary", "fallback", "unused")
+	if err != nil {
+		t.Fatalf("expected fallback query to pass: %v", err)
+	}
+	if len(samples) != 1 || len(querier.queries) != 2 || querier.queries[1] != "fallback" {
+		t.Fatalf("unexpected fallback behavior: samples=%#v queries=%#v", samples, querier.queries)
 	}
 }

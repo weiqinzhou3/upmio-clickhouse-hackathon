@@ -1,7 +1,7 @@
 # Phase 05: Monitoring Integration
 
-- Version: 0.5
-- Date: 2026-06-02
+- Version: 0.6
+- Date: 2026-06-06
 - Status: Confirmed
 - Priority: P0
 - Owner: zqw
@@ -35,6 +35,7 @@ In scope:
 5. Implement `upm-api-server` Prometheus API client for summary queries.
 6. Define MVP PromQL query set.
 7. Decide Grafana dashboard ownership for Open Questions.
+8. Prove the full monitoring chain against a real Prometheus Server.
 
 ## 3. Non-Goals
 
@@ -45,6 +46,7 @@ Out of scope:
 - PrometheusRule/alert rule implementation in MVP.
 - ClickHouse exporter sidecar unless native endpoint fails and user approves.
 - Long-term metric retention design.
+- Installing or managing `kube-prometheus-stack` as an UPMIO product feature.
 
 ## 4. Monitoring Boundary
 
@@ -73,10 +75,21 @@ Kubernetes `metrics-server` alone is not sufficient for this phase. It can
 support resource-level CPU and memory visibility, but it does not scrape
 ClickHouse native metrics and does not prove Prometheus target discovery.
 
-If kube-prometheus-stack or Prometheus images are unavailable in the hackathon
-environment, the phase must still validate the ClickHouse endpoint and
-PodMonitor objects, then record the Prometheus target check as `SKIPPED` with a
-concrete environment reason.
+The hackathon environment must provide a real Prometheus Server before this
+phase can close. ClickHouse endpoint and PodMonitor-only validation is useful
+diagnostic evidence, but it is not sufficient Phase 05 acceptance evidence.
+
+`kube-prometheus-stack` is an external environment prerequisite, not UPMIO
+product code. Its local installation assets must be kept outside this
+repository under:
+
+```text
+../kube-prometheus-stack/
+```
+
+The repository may document the prerequisite and runtime result, but must not
+copy the external chart or environment-only installation assets into a phase
+delivery directory.
 
 ## 5. Required Metrics Categories
 
@@ -90,6 +103,12 @@ MVP should query or prepare queries for:
 | Replica state | ClickHouse SQL in Phase 06 | not solely Prometheus |
 | Part/Merge/Mutation | ClickHouse SQL in Phase 06 | not solely Prometheus |
 | Keeper role/status | Keeper probes/metrics if available | basic role/status summary |
+
+For storage summary, query kubelet PVC volume metrics when the StorageClass
+supports them. When the lab `local-path` provisioner does not expose
+`kubelet_volume_stats_*`, use ClickHouse native
+`ClickHouseAsyncMetrics_DiskUsed/Total/Available_default` as the real
+filesystem-capacity evidence and record that fallback.
 
 ## 6. UPM API Server Metrics API
 
@@ -119,6 +138,20 @@ Minimum response:
 }
 ```
 
+Required behavior:
+
+- `upm-api-server` uses a configured `PROMETHEUS_BASE_URL`.
+- Prometheus queries use an internal fixed query set; arbitrary user-provided
+  PromQL is not exposed.
+- The expected target list is derived from the managed ClickHouse UnitSet/Pods
+  and compared with Prometheus results.
+- Prometheus unavailable returns HTTP `503` with
+  `PROMETHEUS_UNAVAILABLE`.
+- Prometheus available with missing targets or optional metric gaps returns
+  HTTP `200`, status `DEGRADED`, and actionable warnings.
+- All expected targets up and all required summary queries successful returns
+  HTTP `200`, status `READY`.
+
 ## 7. Grafana Ownership Decision
 
 This phase must close or refine the Open Question:
@@ -130,18 +163,23 @@ This phase must close or refine the Open Question:
 Expected decision:
 
 - MVP: `upm-api-server` does not generate Grafana dashboards.
-- Future: dashboards may be provided as package assets or external observability content.
+- Future: dashboards may be provided as separately versioned observability
+  assets or managed externally.
 
 ## 8. Files Likely Changed
 
 ```text
-upm-packages/clickhouse/<version>/charts/files/clickhouseTemplate.tpl
-upm-packages/clickhouse/<version>/charts/values.yaml
-backend/internal/prometheus/client.go
-backend/internal/prometheus/queries.go
-backend/internal/api/monitoring_handler.go
-backend/internal/model/metrics.go
+api-server/internal/prometheus/client.go
+api-server/internal/prometheus/queries.go
+api-server/internal/api/server.go
+api-server/internal/model/metrics.go
+api-server/internal/platform/store.go
+api-server/internal/kube/store.go
+clickhouse/phase-03/manifests/upm-api-server.yaml
+clickhouse/phase-05/scripts/validate-monitoring-runtime.sh
+clickhouse/phase-05/runtime-validation.md
 docs/design/monitoring-design.md
+docs/api/upm-api-server-v1.md
 ```
 
 ## 9. Acceptance Criteria
@@ -150,12 +188,19 @@ docs/design/monitoring-design.md
 2. `curl http://127.0.0.1:9363/metrics` returns Prometheus text from inside the ClickHouse container.
 3. `UnitSet.spec.podMonitor.enable=true` creates PodMonitor when PodMonitor CRD exists.
 4. PodMonitor selects ClickHouse pods by correct labels.
-5. Prometheus target is discovered when kube-prometheus-stack is installed.
-6. `up{...}` or equivalent target query returns ClickHouse target state.
+5. A real Prometheus Server discovers and scrapes every expected ClickHouse
+   Server Pod.
+6. Prometheus target evidence shows expected targets equal actual targets and
+   all expected targets are up.
 7. `upm-api-server` `/metrics/summary` returns structured response and does not leak secrets.
-8. If full Prometheus Server is not available, PodMonitor and endpoint validation are documented as partial with reason.
+8. `/metrics/summary` returns real target, CPU, memory, PVC/storage, and
+   ClickHouse query/write metric evidence from Prometheus.
 9. `metrics-server` output, if available, is treated only as supplementary resource evidence and not as a substitute for the Prometheus scrape chain.
 10. Grafana dashboard ownership decision is recorded.
+11. Prometheus unavailability and partial target failures follow the defined
+    structured API error/status behavior.
+12. A real-environment validation script proves the full chain and saves its
+    result under `clickhouse/phase-05/`.
 
 ## 10. Verification Commands
 
@@ -165,27 +210,30 @@ kubectl get crd | grep -Ei 'podmonitors|servicemonitors|prometheuses|prometheusr
 
 # PodMonitor
 kubectl get podmonitor -A | grep -i clickhouse
-kubectl get podmonitor clickhouse-runtime-exporter-podmon -n upm-clickhouse-runtime -o yaml
+kubectl get podmonitor clickhouse-phase03-exporter-podmon -n upm-clickhouse-phase03-runtime -o yaml
 
 # Endpoint
-kubectl exec -n upm-clickhouse-runtime <clickhouse-pod> -c clickhouse -- curl -sS --max-time 5 http://127.0.0.1:9363/metrics | head
+kubectl exec -n upm-clickhouse-phase03-runtime <clickhouse-pod> -c clickhouse -- curl -sS --max-time 5 http://127.0.0.1:9363/metrics | head
 
-# Prometheus target, when Prometheus is available
+# Prometheus target
 kubectl port-forward -n monitoring svc/<prometheus-service> 9090:9090
-curl -sS 'http://127.0.0.1:9090/api/v1/query?query=up' | jq .
+curl -sS 'http://127.0.0.1:9090/api/v1/query?query=up{namespace="upm-clickhouse-phase03-runtime"}' | jq .
 
 # Optional resource metrics only; this does not replace Prometheus validation
-kubectl top pods -n upm-clickhouse-runtime
+kubectl top pods -n upm-clickhouse-phase03-runtime
 
 # UPM API Server
-curl -sS http://127.0.0.1:<port>/api/v1/clusters/upm-clickhouse-runtime/clickhouse-runtime/metrics/summary | jq .
+curl -sS http://192.168.35.201:30083/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/metrics/summary | jq .
+
+# Full real-environment acceptance
+clickhouse/phase-05/scripts/validate-monitoring-runtime.sh
 ```
 
 ## 11. Risks and Open Questions
 
 | Risk / Question | Handling |
 |---|---|
-| Prometheus images unavailable | Validate CRDs/PodMonitor/endpoint; mark full scrape as environment-blocked |
+| Prometheus images unavailable | Resolve the external environment prerequisite before Phase 05 closeout |
 | Confusing `metrics-server` with Prometheus | Use `metrics-server` only for supplementary resource evidence; require `/metrics` and PodMonitor validation |
 | Native endpoint lacks desired metrics | Keep exporter sidecar as future option |
 | Metrics label names differ by version | Query by stable labels and document assumptions |
@@ -200,3 +248,4 @@ curl -sS http://127.0.0.1:<port>/api/v1/clusters/upm-clickhouse-runtime/clickhou
 | 0.3 | 2026-05-27 | Added metadata and red-team fix structure |
 | 0.4 | 2026-05-27 | Restored concrete monitoring boundary, metrics API, Grafana ownership decision, and runtime verification commands |
 | 0.5 | 2026-06-02 | Added explicit `/metrics -> PodMonitor -> Prometheus -> upm-api-server` closure and clarified that `metrics-server` is supplementary only |
+| 0.6 | 2026-06-06 | Required real Prometheus scrape/API closure, defined external environment asset location, API status semantics, query safety boundary, and real-environment validation |

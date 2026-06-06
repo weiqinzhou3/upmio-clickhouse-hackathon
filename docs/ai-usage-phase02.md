@@ -547,3 +547,34 @@ Codex will summarize submitted evidence and append it to the log below.
     behavior and executable evidence.
 - Resolution artifact:
   - `docs/review/phase-04-review-response.md`
+
+### Entry 012 - Phase 05 Monitoring Start Review and Implementation
+
+- Date: 2026-06-06
+- AI tool: Codex
+- Topic: Start-review and implement the real Prometheus monitoring closure
+- Human decisions:
+  - Accepted the Phase 05 start-review findings.
+  - Required `kube-prometheus-stack` environment assets to live outside the
+    UPM repository because they are environment readiness, not UPMIO product
+    code.
+- Codex decisions and implementation:
+  - Rejected PodMonitor-only or paper validation as sufficient Phase 05
+    acceptance; required a real Prometheus Server and 4/4 target proof.
+  - Kept external chart values and automated image synchronization under
+    `../kube-prometheus-stack/`, outside Git.
+  - Implemented a fixed-query Prometheus client and registered
+    `/api/v1/clusters/{namespace}/{name}/metrics/summary` in
+    `upm-api-server`.
+  - Compared expected Kubernetes ClickHouse Pods with Prometheus target state
+    to prevent partial discovery from producing a false `READY`.
+  - Used ClickHouse native disk used/total/available metrics as the real
+    storage fallback after runtime evidence proved that the lab `local-path`
+    provisioner does not expose kubelet PVC volume statistics.
+  - Reduced returned metric labels to stable user-relevant fields after
+    inspecting the first real API response.
+- Runtime evidence:
+  - Full chain passed with 4/4 targets up, CPU 4, memory 4, storage 12,
+    ClickHouse 20, and no warnings.
+  - Prometheus-unavailable behavior returned structured HTTP `503`.
+  - Evidence is stored under `clickhouse/phase-05/`.

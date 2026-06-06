@@ -6,14 +6,18 @@ import (
 )
 
 type Config struct {
-	ListenAddr     string
-	RequestTimeout time.Duration
+	ListenAddr        string
+	RequestTimeout    time.Duration
+	PrometheusBaseURL string
+	PrometheusTimeout time.Duration
 }
 
 func FromEnv() Config {
 	return Config{
-		ListenAddr:     envOrDefault("LISTEN_ADDR", ":8080"),
-		RequestTimeout: durationOrDefault("REQUEST_TIMEOUT", 10*time.Minute),
+		ListenAddr:        envOrDefault("LISTEN_ADDR", ":8080"),
+		RequestTimeout:    durationOrDefault("REQUEST_TIMEOUT", 10*time.Minute),
+		PrometheusBaseURL: envOrDefault("PROMETHEUS_BASE_URL", "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"),
+		PrometheusTimeout: durationOrDefault("PROMETHEUS_TIMEOUT", 10*time.Second),
 	}
 }
 
