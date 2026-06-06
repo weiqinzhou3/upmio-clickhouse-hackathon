@@ -1,12 +1,13 @@
 # UPM API Server v1 API Reference
 
-- Version: 0.4
+- Version: 0.6
 - Date: 2026-06-06
-- Status: Implemented and runtime validated
+- Status: Implemented and runtime validated through Phase 04
 - Owner: zqw
 - Related:
   - ../master-spec.md
   - ../phases/phase-03-upm-api-server.md
+  - ../phases/phase-04-healthcheck.md
   - ../design/api-design.md
 
 ## 1. Purpose
@@ -116,6 +117,7 @@ Current error codes:
 | `PACKAGE_TOPOLOGY_INVALID` | 422 | Installed package topology cannot be parsed |
 | `PACKAGE_TOPOLOGY_MISMATCH` | 422 | Requested topology differs from installed package topology |
 | `CLUSTER_NOT_FOUND` | 404 | Managed cluster does not exist |
+| `HEALTHCHECK_REPORT_NOT_FOUND` | 404 | Latest in-memory healthcheck report does not exist |
 | `KUBERNETES_FORBIDDEN` | 403 | API server RBAC does not permit the operation |
 | `UPMIO_UNITSET_NOT_READY` | 504 | Keeper UnitSet did not become ready before timeout |
 | `KUBERNETES_API_ERROR` | 500 | Kubernetes API operation failed |
@@ -439,15 +441,182 @@ curl -sS \
   | jq .
 ```
 
-## 7. Not Supported in Phase 03
+### 6.5 Run ClickHouse Runtime Healthcheck
+
+```http
+POST /api/v1/clusters/{namespace}/{name}/healthcheck
+```
+
+Purpose:
+
+- Run a live runtime healthcheck for one managed ClickHouse cluster.
+- Validate Kubernetes resources, Keeper quorum, ClickHouse SQL reachability,
+  `system.clusters` topology, reserved Distributed write/read behavior,
+  replicated table health, metrics endpoint reachability, and response safety.
+- Store the completed report in the API server process memory as the latest
+  report for `{namespace}/{name}`.
+
+Path parameters:
+
+| Parameter | Type | Required | Description |
+|---|---|---:|---|
+| `namespace` | string | Yes | Kubernetes namespace |
+| `name` | string | Yes | Logical cluster name |
+
+Query parameters: none.
+
+Request body: none.
+
+Healthcheck data boundary:
+
+- The API creates or reuses reserved database `upm_healthcheck`.
+- The API creates or reuses reserved tables `local_events` and `dist_events`.
+- The API writes deterministic validation rows only into these reserved tables.
+- Business databases and business tables are not created, modified, or dropped.
+- Existing reserved table definition drift is treated as a failed healthcheck.
+- Existing reserved table definitions are validated before truncate or insert.
+- Concurrent healthchecks for the same cluster are serialized.
+- The report must not contain Secret values, ClickHouse password values, AES
+  keys, or credential plaintext.
+
+Success HTTP status: `200 OK`.
+
+Overall status rules:
+
+| Status | Meaning |
+|---|---|
+| `PASS` | All critical and warning checks passed |
+| `WARN` | All critical checks passed, but one or more warning checks failed |
+| `FAIL` | One or more critical checks failed |
+
+Success response shape:
+
+```json
+{
+  "namespace": "upm-clickhouse-phase03-runtime",
+  "name": "clickhouse-phase03",
+  "cluster": "clickhouse-phase03",
+  "status": "PASS",
+  "startedAt": "2026-06-06T08:00:00Z",
+  "completedAt": "2026-06-06T08:00:12Z",
+  "durationMs": 12000,
+  "summary": {
+    "passed": 14,
+    "warnings": 0,
+    "failed": 0,
+    "skipped": 0
+  },
+  "checks": [
+    {
+      "name": "write_read_probe",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "Distributed write/read probe succeeded through reserved healthcheck tables",
+      "evidence": {
+        "database": "upm_healthcheck",
+        "localTable": "local_events",
+        "distributedTable": "dist_events",
+        "insertedRows": 8
+      },
+      "startedAt": "2026-06-06T08:00:05Z",
+      "endedAt": "2026-06-06T08:00:10Z"
+    }
+  ],
+  "requestId": "req-xxxxxxxx"
+}
+```
+
+Current check names:
+
+| Check | Severity | Description |
+|---|---|---|
+| `upmio_project_exists` | critical | UPMIO Project exists |
+| `keeper_unitset_ready` | critical | Keeper UnitSet ready units match topology |
+| `server_unitset_ready` | critical | ClickHouse Server UnitSet ready units match topology |
+| `pods_ready` | critical | Managed Keeper and ClickHouse Pods are running and ready |
+| `pvc_bound` | critical | Managed data PVCs are bound |
+| `services_endpoints` | critical | Managed Services have ready Endpoints and ClickHouse TCP/HTTP/interserver/metrics ports |
+| `keeper_ruok` | critical | Keeper Pods answer `ruok` with `imok` |
+| `keeper_leader_follower` | critical | Keeper quorum has one leader and followers |
+| `clickhouse_select_1` | critical | ClickHouse SQL endpoint accepts `SELECT 1` |
+| `system_clusters_topology` | critical | `system.clusters` matches the expected topology |
+| `write_read_probe` | critical | Reserved Distributed write/read probe succeeds |
+| `replica_health` | critical | Reserved replicated table replicas are active and caught up |
+| `metrics_endpoint` | warning | Local Prometheus metrics endpoint is reachable |
+| `no_secret_leakage` | critical | Returned report avoids forbidden secret-like tokens and known Secret values |
+
+Usage:
+
+```bash
+curl -sS -X POST \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/healthcheck" \
+  | jq .
+```
+
+### 6.6 Get Latest ClickHouse Runtime Healthcheck
+
+```http
+GET /api/v1/clusters/{namespace}/{name}/healthcheck/latest
+```
+
+Purpose:
+
+- Return the latest in-memory healthcheck report produced by
+  `POST /healthcheck` for the same `{namespace}/{name}`.
+
+Path parameters:
+
+| Parameter | Type | Required | Description |
+|---|---|---:|---|
+| `namespace` | string | Yes | Kubernetes namespace |
+| `name` | string | Yes | Logical cluster name |
+
+Query parameters: none.
+
+Request body: none.
+
+Success HTTP status: `200 OK`.
+
+Success response: same shape as `POST /healthcheck`.
+
+Cache boundary:
+
+- The latest report is stored in `upm-api-server` process memory.
+- Restarting the Pod clears the latest report.
+- No Kubernetes object, PVC, ConfigMap, or CRD is used for Phase 04 latest
+  report persistence.
+- If no report exists after startup, the API returns
+  `HEALTHCHECK_REPORT_NOT_FOUND`.
+
+Usage:
+
+```bash
+curl -sS \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/healthcheck/latest" \
+  | jq .
+```
+
+Not-found response:
+
+```json
+{
+  "code": "HEALTHCHECK_REPORT_NOT_FOUND",
+  "message": "latest healthcheck report not found",
+  "details": {
+    "namespace": "upm-clickhouse-phase03-runtime",
+    "name": "clickhouse-phase03"
+  },
+  "requestId": "req-xxxxxxxx"
+}
+```
+
+## 7. Not Supported After Phase 04
 
 These APIs are registered in later phase specs and must not be claimed as
 supported until implemented and validated:
 
 | API | Phase |
 |---|---|
-| `POST /api/v1/clusters/{namespace}/{name}/healthcheck` | Phase 04 |
-| `GET /api/v1/clusters/{namespace}/{name}/healthcheck/latest` | Phase 04 |
 | `GET /api/v1/clusters/{namespace}/{name}/metrics/summary` | Phase 05 |
 | `GET /api/v1/clusters/{namespace}/{name}/diagnostics` | Phase 06 |
 | `POST /api/v1/clusters/{namespace}/{name}/backup` | Phase 07 |

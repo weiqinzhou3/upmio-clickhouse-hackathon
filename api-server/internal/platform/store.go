@@ -11,4 +11,5 @@ type Store interface {
 	ListClusters(context.Context, string) ([]model.ClusterSummary, error)
 	GetCluster(context.Context, string, string) (model.ClusterSummary, error)
 	GetClusterResources(context.Context, string, string) (model.ClusterResources, error)
+	RunHealthcheck(context.Context, string, string) (model.HealthcheckReport, error)
 }

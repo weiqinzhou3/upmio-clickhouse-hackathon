@@ -1,0 +1,267 @@
+{
+  "namespace": "upm-clickhouse-phase03-runtime",
+  "name": "clickhouse-phase03",
+  "cluster": "clickhouse-phase03",
+  "status": "PASS",
+  "startedAt": "2026-06-06T10:47:58.926276521Z",
+  "completedAt": "2026-06-06T10:48:05.238691797Z",
+  "durationMs": 6312,
+  "summary": {
+    "passed": 14,
+    "warnings": 0,
+    "failed": 0,
+    "skipped": 0
+  },
+  "checks": [
+    {
+      "name": "upmio_project_exists",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "UPMIO Project exists",
+      "evidence": {
+        "project": "upm-clickhouse-phase03-runtime"
+      },
+      "startedAt": "2026-06-06T10:47:58.9321421Z",
+      "endedAt": "2026-06-06T10:47:58.933696462Z"
+    },
+    {
+      "name": "keeper_unitset_ready",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "UnitSet has the expected ready units",
+      "evidence": {
+        "current": 3,
+        "expected": 3,
+        "namespace": "upm-clickhouse-phase03-runtime",
+        "ready": 3,
+        "specUnits": 3,
+        "unitSet": "clickhouse-phase03-keeper"
+      },
+      "startedAt": "2026-06-06T10:47:58.93369758Z",
+      "endedAt": "2026-06-06T10:47:58.93664449Z"
+    },
+    {
+      "name": "server_unitset_ready",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "UnitSet has the expected ready units",
+      "evidence": {
+        "current": 4,
+        "expected": 4,
+        "namespace": "upm-clickhouse-phase03-runtime",
+        "ready": 4,
+        "specUnits": 4,
+        "unitSet": "clickhouse-phase03"
+      },
+      "startedAt": "2026-06-06T10:47:58.936645024Z",
+      "endedAt": "2026-06-06T10:47:58.939670133Z"
+    },
+    {
+      "name": "pods_ready",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "all ClickHouse and Keeper pods are ready",
+      "evidence": {
+        "actualKeeperPods": 3,
+        "actualServerPods": 4,
+        "expectedKeeperPods": 3,
+        "expectedServerPods": 4,
+        "keeperPods": [
+          "clickhouse-phase03-keeper-0",
+          "clickhouse-phase03-keeper-1",
+          "clickhouse-phase03-keeper-2"
+        ],
+        "notReadyPods": [],
+        "serverPods": [
+          "clickhouse-phase03-0",
+          "clickhouse-phase03-1",
+          "clickhouse-phase03-2",
+          "clickhouse-phase03-3"
+        ]
+      },
+      "startedAt": "2026-06-06T10:47:58.945049849Z",
+      "endedAt": "2026-06-06T10:47:58.945054565Z"
+    },
+    {
+      "name": "pvc_bound",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "all data PVCs are bound",
+      "evidence": {
+        "actualPVCs": 7,
+        "expectedPVCs": 7,
+        "notBoundPVCs": [],
+        "pvcs": [
+          "clickhouse-phase03-0-data",
+          "clickhouse-phase03-1-data",
+          "clickhouse-phase03-2-data",
+          "clickhouse-phase03-3-data",
+          "clickhouse-phase03-keeper-0-data",
+          "clickhouse-phase03-keeper-1-data",
+          "clickhouse-phase03-keeper-2-data"
+        ]
+      },
+      "startedAt": "2026-06-06T10:47:58.945055042Z",
+      "endedAt": "2026-06-06T10:47:58.947927362Z"
+    },
+    {
+      "name": "services_endpoints",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "all managed services have ready endpoints",
+      "evidence": {
+        "endpointReadyAddresses": {
+          "clickhouse-phase03-0-svc": 1,
+          "clickhouse-phase03-1-svc": 1,
+          "clickhouse-phase03-2-svc": 1,
+          "clickhouse-phase03-3-svc": 1,
+          "clickhouse-phase03-headless-svc": 4,
+          "clickhouse-phase03-keeper-0-svc": 1,
+          "clickhouse-phase03-keeper-1-svc": 1,
+          "clickhouse-phase03-keeper-2-svc": 1,
+          "clickhouse-phase03-keeper-headless-svc": 3
+        },
+        "missingEndpointPorts": {},
+        "missingReadyEndpoints": [],
+        "missingServicePorts": {},
+        "requiredServerPorts": {
+          "http": 8123,
+          "interserver": 9009,
+          "metrics": 9363,
+          "tcp": 9000
+        },
+        "services": [
+          "clickhouse-phase03-0-svc",
+          "clickhouse-phase03-1-svc",
+          "clickhouse-phase03-2-svc",
+          "clickhouse-phase03-3-svc",
+          "clickhouse-phase03-headless-svc",
+          "clickhouse-phase03-keeper-0-svc",
+          "clickhouse-phase03-keeper-1-svc",
+          "clickhouse-phase03-keeper-2-svc",
+          "clickhouse-phase03-keeper-headless-svc"
+        ]
+      },
+      "startedAt": "2026-06-06T10:47:58.947928017Z",
+      "endedAt": "2026-06-06T10:47:58.952873218Z"
+    },
+    {
+      "name": "keeper_ruok",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "all Keeper pods answered ruok",
+      "evidence": {
+        "failures": {},
+        "results": {
+          "clickhouse-phase03-keeper-0": "imok",
+          "clickhouse-phase03-keeper-1": "imok",
+          "clickhouse-phase03-keeper-2": "imok"
+        }
+      },
+      "startedAt": "2026-06-06T10:47:58.952873679Z",
+      "endedAt": "2026-06-06T10:47:59.192452776Z"
+    },
+    {
+      "name": "keeper_leader_follower",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "Keeper quorum has one leader and followers",
+      "evidence": {
+        "failures": {},
+        "leaders": 1,
+        "roles": {
+          "clickhouse-phase03-keeper-0": "follower",
+          "clickhouse-phase03-keeper-1": "follower",
+          "clickhouse-phase03-keeper-2": "leader"
+        }
+      },
+      "startedAt": "2026-06-06T10:47:59.192453351Z",
+      "endedAt": "2026-06-06T10:47:59.415882577Z"
+    },
+    {
+      "name": "clickhouse_select_1",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "ClickHouse SQL endpoint accepted SELECT 1",
+      "evidence": {
+        "pod": "clickhouse-phase03-0",
+        "result": "1"
+      },
+      "startedAt": "2026-06-06T10:47:59.415883461Z",
+      "endedAt": "2026-06-06T10:47:59.562206907Z"
+    },
+    {
+      "name": "system_clusters_topology",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "system.clusters matches expected topology",
+      "evidence": {
+        "actualRows": 4,
+        "actualShardCount": 2,
+        "cluster": "upm_cluster",
+        "expectedReplicas": 2,
+        "expectedShards": 2,
+        "replicasPerShard": {
+          "1": 2,
+          "2": 2
+        },
+        "sampleQueryPod": "clickhouse-phase03-0"
+      },
+      "startedAt": "2026-06-06T10:47:59.562209633Z",
+      "endedAt": "2026-06-06T10:47:59.706222103Z"
+    },
+    {
+      "name": "write_read_probe",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "Distributed write/read probe succeeded through reserved healthcheck tables",
+      "evidence": {
+        "database": "upm_healthcheck",
+        "distributedTable": "dist_events",
+        "insertedRows": 8,
+        "localTable": "local_events",
+        "pod": "clickhouse-phase03-0"
+      },
+      "startedAt": "2026-06-06T10:47:59.706222839Z",
+      "endedAt": "2026-06-06T10:48:04.976031308Z"
+    },
+    {
+      "name": "replica_health",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "all healthcheck table replicas are active and caught up",
+      "evidence": {
+        "expectedRows": 4,
+        "replicasPerShard": 2,
+        "rows": 4,
+        "unhealthyReplicas": []
+      },
+      "startedAt": "2026-06-06T10:48:04.976031986Z",
+      "endedAt": "2026-06-06T10:48:05.143293942Z"
+    },
+    {
+      "name": "metrics_endpoint",
+      "status": "PASS",
+      "severity": "warning",
+      "message": "ClickHouse metrics endpoint returned Prometheus text",
+      "evidence": {
+        "pod": "clickhouse-phase03-0",
+        "sample": "# HELP ClickHouse_Info ClickHouse server information\n# TYPE ClickHouse_Info gauge\nClickHouse_Info{name=\"ClickHouse\",version=\"26.3.9.8\",version_describe=\"v26.3.9.8-lts\",version_major=\"26\",version_minor=\"3\",version_patch=\"9\"} 1\n# HELP ClickHouseProfileEvents_Query Number of queries to be interpreted and potentially executed. Does not include queries that failed to parse or were rejected due to AST size limits, quota limits or limits on the number of simultaneously running queries. May include internal queries initiated by ClickHouse itself. Does not count subqueries.\n# TYPE ClickHouseProfileEvents_Query counter"
+      },
+      "startedAt": "2026-06-06T10:48:05.143294647Z",
+      "endedAt": "2026-06-06T10:48:05.237977042Z"
+    },
+    {
+      "name": "no_secret_leakage",
+      "status": "PASS",
+      "severity": "critical",
+      "message": "healthcheck report does not include secret field names or values collected by the API server",
+      "evidence": {
+        "forbiddenMatches": []
+      },
+      "startedAt": "2026-06-06T10:48:05.238012791Z",
+      "endedAt": "2026-06-06T10:48:05.238691239Z"
+    }
+  ],
+  "requestId": "req-90594beef4fd6067"
+}
