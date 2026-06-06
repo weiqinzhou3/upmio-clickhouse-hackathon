@@ -18,6 +18,77 @@ The complete Phase 03 API reference is maintained in
 The latest real-environment acceptance evidence is maintained in
 `clickhouse/phase-03/runtime-validation.md`.
 
+## Manual Acceptance
+
+Set the remotely reachable API URL:
+
+```bash
+export UPM_API_SERVER_URL=http://192.168.35.201:30083
+```
+
+Confirm that only the current Phase 03 ClickHouse cluster remains:
+
+```bash
+kubectl get unitsets -A
+```
+
+Expected UnitSets:
+
+```text
+upm-clickhouse-phase03-runtime   clickhouse-phase03
+upm-clickhouse-phase03-runtime   clickhouse-phase03-keeper
+```
+
+Confirm the Kubernetes API service:
+
+```bash
+kubectl -n upm-system get deploy/upm-api-server svc/upm-api-server
+```
+
+Expected state:
+
+```text
+deployment.apps/upm-api-server   1/1
+service/upm-api-server           NodePort   8080:30083/TCP
+```
+
+Call the API directly from a machine that can reach the Kubernetes nodes:
+
+```bash
+curl -fsS "${UPM_API_SERVER_URL}/api/v1/healthz" | jq .
+curl -fsS "${UPM_API_SERVER_URL}/api/v1/clusters" | jq .
+curl -fsS \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/resources" \
+  | jq .
+```
+
+Expected cluster summary:
+
+```text
+status: Running
+topology: 2 shards x 2 replicas + 3 Keeper
+ready.keeper: 3/3
+ready.server: 4/4
+```
+
+Run the real ClickHouse topology, replication, and Distributed-table
+read/write acceptance:
+
+```bash
+NS=upm-clickhouse-phase03-runtime \
+CLICKHOUSE_UNITSET=clickhouse-phase03 \
+KEEPER_UNITSET=clickhouse-phase03-keeper \
+POD=clickhouse-phase03-0 \
+DB=phase03_manual_acceptance \
+  clickhouse/phase-02/scripts/validate-runtime-2s2r.sh
+```
+
+Expected final line:
+
+```text
+PASS runtime_2s2r_validation
+```
+
 ## Runtime Validation Script
 
 Use this script after `upm-api-server` is implemented:
@@ -34,8 +105,9 @@ The script validates a real Kubernetes/UPMIO environment:
 - `upm-api-server` is deployed as `Deployment/Service/ServiceAccount` in
   Kubernetes.
 - `upm-api-server` `/api/v1/healthz` responds.
-- Invalid cluster creation returns a structured error with `requestId`.
-- `GET /api/v1/clusters` can discover the real Phase 02 runtime cluster.
+- Invalid cluster creation returns the expected structured error with
+  `requestId`.
+- `GET /api/v1/clusters` can discover the real Phase 03 runtime cluster.
 - `GET /api/v1/clusters/{namespace}/{name}/resources` returns real UnitSet,
   Unit, Pod, PVC, Service, and Endpoint status without leaking Secret values.
 
@@ -45,9 +117,18 @@ Expected final line:
 PASS upm_api_server_runtime_validation
 ```
 
+The expected invalid-request test also prints:
+
+```text
+PASS expected_structured_error
+```
+
+The structured `VALIDATION_ERROR` JSON printed immediately before that line is
+the expected result, not a script failure.
+
 The script does not start a local binary. If `API_SERVER_URL` is not already
-reachable, it opens a temporary `kubectl port-forward` to the Kubernetes
-Service:
+reachable, set `START_PORT_FORWARD=auto` to allow a temporary
+`kubectl port-forward` to the Kubernetes Service:
 
 ```bash
 API_SERVER_NS=upm-system \
@@ -66,8 +147,11 @@ Supported script environment variables:
 | `API_SERVER_SERVICE` | `upm-api-server` | Service and ServiceAccount name |
 | `API_SERVER_SERVICE_PORT` | `8080` | Service port used by port-forward |
 | `API_SERVER_LOCAL_PORT` | `18083` | Local port used only for port-forward access |
-| `API_SERVER_URL` | `http://127.0.0.1:${API_SERVER_LOCAL_PORT}` | API URL used by curl |
-| `START_PORT_FORWARD` | `auto` | Set to `0` to require an already reachable API URL |
+| `API_SERVER_URL` | `http://192.168.35.201:30083` | API URL used by curl |
+| `START_PORT_FORWARD` | `0` | Set to `auto` to allow port-forward fallback |
+| `EXISTING_NS` | `upm-clickhouse-phase03-runtime` | Existing cluster namespace checked by read APIs |
+| `EXISTING_CLUSTER` | `clickhouse-phase03` | Existing ClickHouse UnitSet checked by read APIs |
+| `EXISTING_KEEPER` | `clickhouse-phase03-keeper` | Existing Keeper UnitSet checked by read APIs |
 
 ## Optional Create E2E Mode
 

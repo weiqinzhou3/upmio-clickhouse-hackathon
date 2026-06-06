@@ -42,7 +42,22 @@ Real deployment state:
 ```text
 Deployment/upm-api-server: 1/1 Ready
 Pod/upm-api-server:         Running
-Service/upm-api-server:     ClusterIP, port 8080
+Service/upm-api-server:     NodePort, port 8080, nodePort 30083
+```
+
+Lab API URL:
+
+```text
+http://192.168.35.201:30083
+```
+
+The health API returned `200 OK` through NodePort `30083` on all four nodes:
+
+```text
+192.168.35.201
+192.168.35.202
+192.168.35.203
+192.168.35.204
 ```
 
 RBAC verification for
@@ -69,10 +84,17 @@ PASS upm_api_server_runtime_validation
 It verified:
 
 - `/api/v1/healthz` through the Kubernetes Service.
-- Structured invalid-request errors with `requestId`.
-- Discovery of the existing real Phase 02 cluster.
+- Expected invalid-request HTTP `400` and `VALIDATION_ERROR` with `requestId`.
+- Discovery of the existing real Phase 03 cluster.
 - Real cluster detail and resource aggregation.
 - Secret values are absent from API responses.
+
+After runtime cleanup, the Kubernetes cluster retains only:
+
+```text
+upm-clickhouse-phase03-runtime/clickhouse-phase03
+upm-clickhouse-phase03-runtime/clickhouse-phase03-keeper
+```
 
 ## 4. Create Cluster and Database E2E Evidence
 

@@ -6,12 +6,12 @@ API_SERVER_DEPLOYMENT="${API_SERVER_DEPLOYMENT:-upm-api-server}"
 API_SERVER_SERVICE="${API_SERVER_SERVICE:-upm-api-server}"
 API_SERVER_SERVICE_PORT="${API_SERVER_SERVICE_PORT:-8080}"
 API_SERVER_LOCAL_PORT="${API_SERVER_LOCAL_PORT:-18083}"
-API_SERVER_URL="${API_SERVER_URL:-http://127.0.0.1:${API_SERVER_LOCAL_PORT}}"
-START_PORT_FORWARD="${START_PORT_FORWARD:-auto}"
+API_SERVER_URL="${API_SERVER_URL:-http://192.168.35.201:30083}"
+START_PORT_FORWARD="${START_PORT_FORWARD:-0}"
 
-PHASE02_NS="${PHASE02_NS:-upm-clickhouse-phase02-runtime}"
-PHASE02_CLUSTER="${PHASE02_CLUSTER:-clickhouse-phase02}"
-PHASE02_KEEPER="${PHASE02_KEEPER:-clickhouse-phase02-keeper}"
+EXISTING_NS="${EXISTING_NS:-upm-clickhouse-phase03-runtime}"
+EXISTING_CLUSTER="${EXISTING_CLUSTER:-clickhouse-phase03}"
+EXISTING_KEEPER="${EXISTING_KEEPER:-clickhouse-phase03-keeper}"
 
 PHASE03_CREATE_E2E="${PHASE03_CREATE_E2E:-0}"
 PHASE03_CREATE_E2E_RESET="${PHASE03_CREATE_E2E_RESET:-0}"
@@ -25,7 +25,7 @@ CREATE_STORAGE_CLASS="${CREATE_STORAGE_CLASS:-local-path}"
 CREATE_SERVER_SIZE="${CREATE_SERVER_SIZE:-20Gi}"
 CREATE_KEEPER_SIZE="${CREATE_KEEPER_SIZE:-10Gi}"
 CREATE_ADMIN_SECRET="${CREATE_ADMIN_SECRET:-clickhouse-phase03-secret}"
-PHASE02_RUNTIME_VALIDATOR="${PHASE02_RUNTIME_VALIDATOR:-clickhouse/phase-02/scripts/validate-runtime-2s2r.sh}"
+DB_RUNTIME_VALIDATOR="${DB_RUNTIME_VALIDATOR:-clickhouse/phase-02/scripts/validate-runtime-2s2r.sh}"
 
 port_forward_pid=""
 tmpdir=""
@@ -142,9 +142,9 @@ validate_prerequisites() {
   kubectl get crd units.upm.syntropycloud.io >/dev/null
   kubectl get pods -n upm-system -l app.kubernetes.io/name=unit-operator >/dev/null
   kubectl wait --for=jsonpath='{.status.readyUnits}'=3 \
-    "unitset/${PHASE02_KEEPER}" -n "$PHASE02_NS" --timeout=360s
+    "unitset/${EXISTING_KEEPER}" -n "$EXISTING_NS" --timeout=360s
   kubectl wait --for=jsonpath='{.status.readyUnits}'=4 \
-    "unitset/${PHASE02_CLUSTER}" -n "$PHASE02_NS" --timeout=360s
+    "unitset/${EXISTING_CLUSTER}" -n "$EXISTING_NS" --timeout=360s
 }
 
 validate_api_server_deployment() {
@@ -155,6 +155,8 @@ validate_api_server_deployment() {
   kubectl -n "$API_SERVER_NS" get service "$API_SERVER_SERVICE" >/dev/null
   kubectl -n "$API_SERVER_NS" rollout status \
     "deployment/${API_SERVER_DEPLOYMENT}" --timeout=180s
+  kubectl -n "$API_SERVER_NS" get service "$API_SERVER_SERVICE" \
+    -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}' | grep -qx '30083'
 }
 
 validate_healthz() {
@@ -165,7 +167,7 @@ validate_healthz() {
 }
 
 validate_structured_error() {
-  echo "== Structured error response =="
+  echo "== Expected structured error response =="
   cat >"${tmpdir}/invalid-cluster.json" <<'JSON'
 {
   "namespace": "bad namespace",
@@ -181,34 +183,36 @@ JSON
 
   local http_code
   http_code="$(api_post_json "/api/v1/clusters" "${tmpdir}/invalid-cluster.json" "${tmpdir}/invalid-response.json")"
-  if [[ "$http_code" =~ ^2 ]]; then
-    echo "ERROR: invalid cluster request returned HTTP ${http_code}" >&2
+  if [[ "$http_code" != "400" ]]; then
+    echo "ERROR: invalid cluster request returned HTTP ${http_code}, expected 400" >&2
     cat "${tmpdir}/invalid-response.json" >&2
     exit 1
   fi
-  jq -e '.code and .message and .requestId' "${tmpdir}/invalid-response.json" >/dev/null
+  jq -e 'select(.code == "VALIDATION_ERROR" and .message and .requestId)' \
+    "${tmpdir}/invalid-response.json" >/dev/null
   assert_no_secret_leak "${tmpdir}/invalid-response.json"
   cat "${tmpdir}/invalid-response.json"
   echo
+  echo "PASS expected_structured_error"
 }
 
 validate_existing_cluster_read_paths() {
   echo "== Existing real cluster list/resources =="
   api_get "/api/v1/clusters" >"${tmpdir}/clusters.json"
-  jq -e --arg ns "$PHASE02_NS" --arg name "$PHASE02_CLUSTER" \
+  jq -e --arg ns "$EXISTING_NS" --arg name "$EXISTING_CLUSTER" \
     '.. | objects | select((.namespace? == $ns) and (.name? == $name))' \
     "${tmpdir}/clusters.json" >/dev/null
   assert_no_secret_leak "${tmpdir}/clusters.json"
 
-  api_get "/api/v1/clusters/${PHASE02_NS}/${PHASE02_CLUSTER}" >"${tmpdir}/cluster.json"
-  jq -e --arg ns "$PHASE02_NS" --arg name "$PHASE02_CLUSTER" \
+  api_get "/api/v1/clusters/${EXISTING_NS}/${EXISTING_CLUSTER}" >"${tmpdir}/cluster.json"
+  jq -e --arg ns "$EXISTING_NS" --arg name "$EXISTING_CLUSTER" \
     'select((.namespace == $ns) and (.name == $name) and (.topology.shards >= 1) and (.topology.replicasPerShard >= 1))' \
     "${tmpdir}/cluster.json" >/dev/null
   assert_no_secret_leak "${tmpdir}/cluster.json"
 
-  api_get "/api/v1/clusters/${PHASE02_NS}/${PHASE02_CLUSTER}/resources" >"${tmpdir}/resources.json"
-  grep -q "$PHASE02_CLUSTER" "${tmpdir}/resources.json"
-  grep -q "$PHASE02_KEEPER" "${tmpdir}/resources.json"
+  api_get "/api/v1/clusters/${EXISTING_NS}/${EXISTING_CLUSTER}/resources" >"${tmpdir}/resources.json"
+  grep -q "$EXISTING_CLUSTER" "${tmpdir}/resources.json"
+  grep -q "$EXISTING_KEEPER" "${tmpdir}/resources.json"
   grep -Eiq "unitset|pod|pvc|service|endpoint" "${tmpdir}/resources.json"
   assert_no_secret_leak "${tmpdir}/resources.json"
   jq . "${tmpdir}/resources.json" >/dev/null
@@ -272,8 +276,8 @@ JSON
     "SELECT throwIf(count() != $((CREATE_SHARDS * CREATE_REPLICAS_PER_SHARD)), 'system.clusters topology mismatch') FROM system.clusters WHERE cluster='upm_cluster'"
 
   if [[ "$CREATE_SHARDS" == "2" && "$CREATE_REPLICAS_PER_SHARD" == "2" && "$CREATE_KEEPER_REPLICAS" == "3" ]]; then
-    if [[ ! -x "$PHASE02_RUNTIME_VALIDATOR" ]]; then
-      echo "ERROR: 2x2 database runtime validator not executable: ${PHASE02_RUNTIME_VALIDATOR}" >&2
+    if [[ ! -x "$DB_RUNTIME_VALIDATOR" ]]; then
+      echo "ERROR: 2x2 database runtime validator not executable: ${DB_RUNTIME_VALIDATOR}" >&2
       exit 1
     fi
     NS="$CREATE_NS" \
@@ -281,7 +285,7 @@ JSON
       KEEPER_UNITSET="${CREATE_CLUSTER}-keeper" \
       POD="${CREATE_CLUSTER}-0" \
       DB="phase03_api_validation" \
-      "$PHASE02_RUNTIME_VALIDATOR"
+      "$DB_RUNTIME_VALIDATOR"
   fi
 }
 

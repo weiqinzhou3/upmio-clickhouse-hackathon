@@ -1,6 +1,6 @@
 # UPM API Server v1 API Reference
 
-- Version: 0.3
+- Version: 0.4
 - Date: 2026-06-06
 - Status: Implemented and runtime validated
 - Owner: zqw
@@ -25,17 +25,32 @@ When a later phase adds a feature, the feature must be registered in
 `upm-api-server` must run inside Kubernetes. Local binary deployment is not a
 supported acceptance path.
 
-Recommended terminal access for validation:
+The hackathon lab exposes the API through a fixed NodePort:
+
+```bash
+export UPM_API_SERVER_URL=http://192.168.35.201:30083
+curl -fsS "${UPM_API_SERVER_URL}/api/v1/healthz" | jq .
+```
+
+The same NodePort is reachable through any available Kubernetes node:
+
+```text
+http://192.168.35.201:30083
+http://192.168.35.202:30083
+http://192.168.35.203:30083
+http://192.168.35.204:30083
+```
+
+For temporary administrator access when NodePort is unavailable:
 
 ```bash
 kubectl -n upm-system port-forward svc/upm-api-server 18083:8080
+export UPM_API_SERVER_URL=http://127.0.0.1:18083
 ```
 
-Base URL:
-
-```text
-http://127.0.0.1:18083
-```
+The Phase 03 NodePort has no application-layer authentication. It is for the
+isolated hackathon lab only. Production exposure requires an authenticated
+Gateway/Ingress or equivalent protected access path.
 
 ## 3. Common Rules
 
@@ -138,7 +153,7 @@ Success response:
 Usage:
 
 ```bash
-curl -sS http://127.0.0.1:18083/api/v1/healthz | jq .
+curl -sS "${UPM_API_SERVER_URL}/api/v1/healthz" | jq .
 ```
 
 ## 6. Cluster APIs
@@ -243,7 +258,7 @@ Success response:
 Usage:
 
 ```bash
-curl -sS -X POST http://127.0.0.1:18083/api/v1/clusters \
+curl -sS -X POST "${UPM_API_SERVER_URL}/api/v1/clusters" \
   -H "Content-Type: application/json" \
   --data @cluster-create.json | jq .
 ```
@@ -251,7 +266,7 @@ curl -sS -X POST http://127.0.0.1:18083/api/v1/clusters \
 Invalid request usage:
 
 ```bash
-curl -sS -X POST http://127.0.0.1:18083/api/v1/clusters \
+curl -sS -X POST "${UPM_API_SERVER_URL}/api/v1/clusters" \
   -H "Content-Type: application/json" \
   -d '{"namespace":"bad namespace","name":"x"}' | jq .
 ```
@@ -305,13 +320,13 @@ Success response:
 Usage:
 
 ```bash
-curl -sS http://127.0.0.1:18083/api/v1/clusters | jq .
+curl -sS "${UPM_API_SERVER_URL}/api/v1/clusters" | jq .
 ```
 
 Namespace-filtered usage:
 
 ```bash
-curl -sS "http://127.0.0.1:18083/api/v1/clusters?namespace=upm-clickhouse-runtime" | jq .
+curl -sS "${UPM_API_SERVER_URL}/api/v1/clusters?namespace=upm-clickhouse-phase03-runtime" | jq .
 ```
 
 ### 6.3 Get ClickHouse Cluster Summary
@@ -361,7 +376,7 @@ Usage:
 
 ```bash
 curl -sS \
-  http://127.0.0.1:18083/api/v1/clusters/upm-clickhouse-runtime/clickhouse-runtime \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03" \
   | jq .
 ```
 
@@ -420,7 +435,7 @@ Usage:
 
 ```bash
 curl -sS \
-  http://127.0.0.1:18083/api/v1/clusters/upm-clickhouse-runtime/clickhouse-runtime/resources \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/resources" \
   | jq .
 ```
 

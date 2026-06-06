@@ -151,10 +151,11 @@ metadata:
     app.kubernetes.io/name: upm-api-server
     app.kubernetes.io/part-of: upmio
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app.kubernetes.io/name: upm-api-server
   ports:
     - name: http
       port: 8080
       targetPort: http
+      nodePort: 30083
