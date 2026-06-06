@@ -27,7 +27,9 @@ UPMIO provides integration points such as PodMonitor. It does not provide a full
 
 For the hackathon environment, `kube-prometheus-stack` installation assets are
 kept outside this repository under `../kube-prometheus-stack/`. They are
-environment readiness assets, not UPMIO product deliverables.
+environment readiness assets, not UPMIO product deliverables. Those assets
+must install Prometheus and Grafana, provision a Prometheus datasource, and
+import the MVP ClickHouse dashboard automatically.
 
 ## 3. MVP Metric Exposure
 
@@ -101,7 +103,6 @@ infrastructure labels are filtered from the API response.
 
 ## 7. Future Enhancements
 
-- Grafana dashboard templates;
 - PrometheusRule alerting;
 - richer ClickHouse PromQL library;
 - exporter sidecar if native endpoint is insufficient;
@@ -116,4 +117,8 @@ infrastructure labels are filtered from the API response.
 - `upm-api-server` can query and summarize key metrics.
 - All expected ClickHouse Server Pods are compared with Prometheus target
   results so a silently missing target cannot produce a false `READY`.
-- Grafana dashboards remain externally managed in MVP.
+- Grafana is installed as part of the external monitoring environment.
+- Grafana datasource and MVP ClickHouse dashboard are provisioned
+  automatically.
+- Every required dashboard panel query returns non-empty data through the
+  Grafana datasource proxy.

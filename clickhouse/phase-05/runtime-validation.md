@@ -7,6 +7,9 @@
 - API server image: `localhost/upmio/upm-api-server:phase-05`
 - External Prometheus chart: `kube-prometheus-stack-86.2.0`
 - External environment assets: `../kube-prometheus-stack/`
+- Grafana endpoint: `http://192.168.35.201:30300`
+- Grafana dashboard UID: `upm-clickhouse-overview`
+- Grafana datasource UID: `prometheus`
 
 ## Environment Boundary
 
@@ -20,9 +23,12 @@ The lab deployment enables:
 - Prometheus Server;
 - kubelet/cAdvisor scraping;
 - cross-namespace PodMonitor discovery.
+- Grafana Server;
+- Prometheus datasource provisioning;
+- ClickHouse dashboard provisioning.
 
-Grafana, Alertmanager, kube-state-metrics, node-exporter, admission webhooks,
-and default alert rules are disabled because they are not required by Phase 05.
+Alertmanager, kube-state-metrics, node-exporter, admission webhooks, and
+default alert rules are disabled because they are not required by Phase 05.
 
 ## Commands
 
@@ -74,6 +80,8 @@ Saved evidence:
 
 - `clickhouse/phase-05/prometheus-targets.json`
 - `clickhouse/phase-05/metrics-summary.json`
+- `clickhouse/phase-05/grafana-dashboard.json`
+- `clickhouse/phase-05/grafana-panel-query-results.json`
 
 The proven chain is:
 
@@ -83,6 +91,46 @@ ClickHouse native /metrics
   -> Prometheus discovers 4/4 expected targets
   -> fixed PromQL queries return real samples
   -> upm-api-server returns READY metrics summary
+  -> Grafana datasource reaches Prometheus
+  -> Grafana ClickHouse dashboard is imported
+  -> every required dashboard panel query returns real samples
+```
+
+## Grafana Result
+
+Grafana is exposed through the external environment service:
+
+```text
+http://192.168.35.201:30300
+```
+
+The lab credential is `admin/admin`.
+
+The validation script verified:
+
+- datasource `prometheus` points to
+  `http://kube-prometheus-stack-prometheus.monitoring.svc:9090`;
+- dashboard `upm-clickhouse-overview` exists with at least 11 panels;
+- all required panel queries returned 4 samples;
+- panel queries are extracted from the imported Grafana dashboard JSON and
+  executed through the Grafana datasource proxy after substituting the
+  `namespace` and `cluster` dashboard variables.
+
+Panel query result:
+
+```text
+PASS grafana_panel=Target Up samples=4
+PASS grafana_panel=CPU Cores samples=4
+PASS grafana_panel=Memory Working Set samples=4
+PASS grafana_panel=Disk Used samples=4
+PASS grafana_panel=Disk Available samples=4
+PASS grafana_panel=Disk Total samples=4
+PASS grafana_panel=Queries samples=4
+PASS grafana_panel=Insert Queries samples=4
+PASS grafana_panel=Inserted Rows samples=4
+PASS grafana_panel=Inserted Bytes samples=4
+PASS grafana_panel=ClickHouse Memory Tracking samples=4
+PASS grafana_dashboard=upm-clickhouse-overview
 ```
 
 ## Storage Evidence Decision

@@ -1,0 +1,377 @@
+{
+  "meta": {
+    "type": "db",
+    "canSave": true,
+    "canEdit": true,
+    "canAdmin": true,
+    "canStar": true,
+    "canDelete": true,
+    "slug": "upm-clickhouse-monitoring-overview",
+    "url": "/d/upm-clickhouse-overview/upm-clickhouse-monitoring-overview",
+    "expires": "0001-01-01T00:00:00Z",
+    "created": "2026-06-06T13:11:57Z",
+    "updated": "2026-06-06T13:11:57Z",
+    "updatedBy": "Anonymous",
+    "createdBy": "Anonymous",
+    "version": 1,
+    "hasAcl": false,
+    "isFolder": false,
+    "apiVersion": "v0alpha1",
+    "folderId": 0,
+    "folderUid": "",
+    "folderTitle": "General",
+    "folderUrl": "",
+    "provisioned": true,
+    "provisionedExternalId": "upm-clickhouse-overview.json",
+    "annotationsPermissions": {
+      "dashboard": {
+        "canAdd": true,
+        "canEdit": true,
+        "canDelete": true
+      }
+    }
+  },
+  "dashboard": {
+    "id": 598893192208384,
+    "panels": [
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "green",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        },
+        "id": 1,
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          }
+        },
+        "targets": [
+          {
+            "expr": "up{namespace=\"$namespace\",pod=~\"$cluster-[0-9]+\",endpoint=\"metrics\"}",
+            "refId": "A"
+          }
+        ],
+        "title": "Target Up",
+        "type": "stat"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "cores"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 6,
+          "y": 0
+        },
+        "id": 2,
+        "targets": [
+          {
+            "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",pod=~\"$cluster-[0-9]+\",container=\"clickhouse\"}[2m]))",
+            "refId": "A"
+          }
+        ],
+        "title": "CPU Cores",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 18,
+          "y": 0
+        },
+        "id": 3,
+        "targets": [
+          {
+            "expr": "container_memory_working_set_bytes{namespace=\"$namespace\",pod=~\"$cluster-[0-9]+\",container=\"clickhouse\"}",
+            "refId": "A"
+          }
+        ],
+        "title": "Memory Working Set",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 10,
+          "x": 0,
+          "y": 8
+        },
+        "id": 4,
+        "targets": [
+          {
+            "expr": "ClickHouseAsyncMetrics_DiskUsed_default{namespace=\"$namespace\",pod=~\"$cluster-[0-9]+\"}",
+            "refId": "A"
+          }
+        ],
+        "title": "Disk Used",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 10,
+          "x": 10,
+          "y": 8
+        },
+        "id": 5,
+        "targets": [
+          {
+            "expr": "ClickHouseAsyncMetrics_DiskAvailable_default{namespace=\"$namespace\",pod=~\"$cluster-[0-9]+\"}",
+            "refId": "A"
+          }
+        ],
+        "title": "Disk Available",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 10,
+          "x": 20,
+          "y": 8
+        },
+        "id": 6,
+        "targets": [
+          {
+            "expr": "ClickHouseAsyncMetrics_DiskTotal_default{namespace=\"$namespace\",pod=~\"$cluster-[0-9]+\"}",
+            "refId": "A"
+          }
+        ],
+        "title": "Disk Total",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 10,
+          "x": 0,
+          "y": 16
+        },
+        "id": 7,
+        "targets": [
+          {
+            "expr": "ClickHouseProfileEvents_Query{namespace=\"$namespace\",pod=~\"$cluster-[0-9]+\"}",
+            "refId": "A"
+          }
+        ],
+        "title": "Queries",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 10,
+          "x": 10,
+          "y": 16
+        },
+        "id": 8,
+        "targets": [
+          {
+            "expr": "ClickHouseProfileEvents_InsertQuery{namespace=\"$namespace\",pod=~\"$cluster-[0-9]+\"}",
+            "refId": "A"
+          }
+        ],
+        "title": "Insert Queries",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 10,
+          "x": 20,
+          "y": 16
+        },
+        "id": 9,
+        "targets": [
+          {
+            "expr": "ClickHouseProfileEvents_InsertedRows{namespace=\"$namespace\",pod=~\"$cluster-[0-9]+\"}",
+            "refId": "A"
+          }
+        ],
+        "title": "Inserted Rows",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 15,
+          "x": 0,
+          "y": 24
+        },
+        "id": 10,
+        "targets": [
+          {
+            "expr": "ClickHouseProfileEvents_InsertedBytes{namespace=\"$namespace\",pod=~\"$cluster-[0-9]+\"}",
+            "refId": "A"
+          }
+        ],
+        "title": "Inserted Bytes",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 15,
+          "x": 15,
+          "y": 24
+        },
+        "id": 11,
+        "targets": [
+          {
+            "expr": "ClickHouseMetrics_MemoryTracking{namespace=\"$namespace\",pod=~\"$cluster-[0-9]+\"}",
+            "refId": "A"
+          }
+        ],
+        "title": "ClickHouse Memory Tracking",
+        "type": "timeseries"
+      }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 39,
+    "tags": [
+      "upm",
+      "clickhouse",
+      "hackathon"
+    ],
+    "templating": {
+      "list": [
+        {
+          "current": {
+            "selected": true,
+            "text": "upm-clickhouse-phase03-runtime",
+            "value": "upm-clickhouse-phase03-runtime"
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "name": "namespace",
+          "query": "label_values(up{endpoint=\"metrics\"}, namespace)",
+          "refresh": 1,
+          "type": "query"
+        },
+        {
+          "current": {
+            "selected": true,
+            "text": "clickhouse-phase03",
+            "value": "clickhouse-phase03"
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "name": "cluster",
+          "query": "label_values(up{namespace=\"$namespace\",endpoint=\"metrics\"}, job)",
+          "refresh": 1,
+          "regex": "/.*\\/(.+)-exporter-podmon/",
+          "type": "query"
+        }
+      ]
+    },
+    "timezone": "browser",
+    "title": "UPM ClickHouse Monitoring Overview",
+    "uid": "upm-clickhouse-overview",
+    "version": 1
+  }
+}

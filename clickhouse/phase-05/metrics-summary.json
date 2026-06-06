@@ -1,10 +1,10 @@
 {
-  "requestId": "req-bee1b900b76e4219",
+  "requestId": "req-ad0a09a86224260a",
   "namespace": "upm-clickhouse-phase03-runtime",
   "name": "clickhouse-phase03",
   "cluster": "clickhouse-phase03",
   "status": "READY",
-  "collectedAt": "2026-06-06T12:22:39.917245377Z",
+  "collectedAt": "2026-06-06T13:19:36.104153536Z",
   "podMonitor": {
     "name": "clickhouse-phase03-exporter-podmon",
     "exists": true
@@ -34,7 +34,7 @@
         "labels": {
           "pod": "clickhouse-phase03-0"
         },
-        "value": 0.028046537992530943,
+        "value": 0.02739381974202913,
         "unit": "cores"
       },
       {
@@ -42,7 +42,7 @@
         "labels": {
           "pod": "clickhouse-phase03-1"
         },
-        "value": 0.02830370533112997,
+        "value": 0.02965555275797879,
         "unit": "cores"
       },
       {
@@ -50,7 +50,7 @@
         "labels": {
           "pod": "clickhouse-phase03-2"
         },
-        "value": 0.026800776166587024,
+        "value": 0.030955769370813496,
         "unit": "cores"
       },
       {
@@ -58,7 +58,7 @@
         "labels": {
           "pod": "clickhouse-phase03-3"
         },
-        "value": 0.02610034049119696,
+        "value": 0.030392879495019797,
         "unit": "cores"
       }
     ],
@@ -70,7 +70,7 @@
           "node": "upm-k8s-worker01",
           "pod": "clickhouse-phase03-0"
         },
-        "value": 592498688,
+        "value": 596332544,
         "unit": "bytes"
       },
       {
@@ -80,7 +80,7 @@
           "node": "upm-k8s-worker02",
           "pod": "clickhouse-phase03-1"
         },
-        "value": 478212096,
+        "value": 476225536,
         "unit": "bytes"
       },
       {
@@ -90,7 +90,7 @@
           "node": "upm-k8s-worker03",
           "pod": "clickhouse-phase03-2"
         },
-        "value": 494923776,
+        "value": 496758784,
         "unit": "bytes"
       },
       {
@@ -100,7 +100,7 @@
           "node": "upm-k8s-worker02",
           "pod": "clickhouse-phase03-3"
         },
-        "value": 490840064,
+        "value": 498831360,
         "unit": "bytes"
       }
     ],
@@ -111,7 +111,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-0"
         },
-        "value": 34393382912,
+        "value": 32735416320,
         "unit": "bytes"
       },
       {
@@ -120,7 +120,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-1"
         },
-        "value": 33968132096,
+        "value": 32221671424,
         "unit": "bytes"
       },
       {
@@ -129,7 +129,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-2"
         },
-        "value": 34345578496,
+        "value": 32731811840,
         "unit": "bytes"
       },
       {
@@ -138,7 +138,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-3"
         },
-        "value": 33826349056,
+        "value": 32221609984,
         "unit": "bytes"
       },
       {
@@ -183,7 +183,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-0"
         },
-        "value": 15368695808,
+        "value": 17026662400,
         "unit": "bytes"
       },
       {
@@ -192,7 +192,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-1"
         },
-        "value": 15793946624,
+        "value": 17540407296,
         "unit": "bytes"
       },
       {
@@ -201,7 +201,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-2"
         },
-        "value": 15416500224,
+        "value": 17030266880,
         "unit": "bytes"
       },
       {
@@ -210,7 +210,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-3"
         },
-        "value": 15935729664,
+        "value": 17540468736,
         "unit": "bytes"
       }
     ],
@@ -221,7 +221,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-0"
         },
-        "value": 40700290
+        "value": 41348746
       },
       {
         "name": "ClickHouseMetrics_MemoryTracking",
@@ -229,7 +229,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-1"
         },
-        "value": 34533682
+        "value": 31017298
       },
       {
         "name": "ClickHouseMetrics_MemoryTracking",
@@ -237,7 +237,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-2"
         },
-        "value": 281214690
+        "value": 281893186
       },
       {
         "name": "ClickHouseMetrics_MemoryTracking",
@@ -245,7 +245,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-3"
         },
-        "value": 37388488
+        "value": 33882184
       },
       {
         "name": "ClickHouseProfileEvents_InsertQuery",
@@ -349,7 +349,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-0"
         },
-        "value": 2400
+        "value": 2685
       },
       {
         "name": "ClickHouseProfileEvents_Query",
@@ -357,7 +357,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-1"
         },
-        "value": 2215
+        "value": 2500
       },
       {
         "name": "ClickHouseProfileEvents_Query",
@@ -365,7 +365,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-2"
         },
-        "value": 2254
+        "value": 2539
       },
       {
         "name": "ClickHouseProfileEvents_Query",
@@ -373,7 +373,7 @@
           "namespace": "upm-clickhouse-phase03-runtime",
           "pod": "clickhouse-phase03-3"
         },
-        "value": 2250
+        "value": 2535
       }
     ]
   },

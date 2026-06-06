@@ -1,0 +1,57 @@
+[
+  {
+    "panel": "Target Up",
+    "query": "up{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\",endpoint=\"metrics\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "CPU Cores",
+    "query": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\",container=\"clickhouse\"}[2m]))",
+    "resultCount": 4
+  },
+  {
+    "panel": "Memory Working Set",
+    "query": "container_memory_working_set_bytes{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\",container=\"clickhouse\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Disk Used",
+    "query": "ClickHouseAsyncMetrics_DiskUsed_default{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Disk Available",
+    "query": "ClickHouseAsyncMetrics_DiskAvailable_default{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Disk Total",
+    "query": "ClickHouseAsyncMetrics_DiskTotal_default{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Queries",
+    "query": "ClickHouseProfileEvents_Query{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Insert Queries",
+    "query": "ClickHouseProfileEvents_InsertQuery{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Inserted Rows",
+    "query": "ClickHouseProfileEvents_InsertedRows{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Inserted Bytes",
+    "query": "ClickHouseProfileEvents_InsertedBytes{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "ClickHouse Memory Tracking",
+    "query": "ClickHouseMetrics_MemoryTracking{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  }
+]

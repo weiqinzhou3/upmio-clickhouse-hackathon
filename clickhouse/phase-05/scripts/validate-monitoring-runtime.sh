@@ -8,18 +8,36 @@ API_BASE="${API_BASE:-http://192.168.35.201:30083}"
 PROM_NS="${PROM_NS:-monitoring}"
 PROM_SVC="${PROM_SVC:-kube-prometheus-stack-prometheus}"
 PROM_PORT="${PROM_PORT:-19090}"
+GRAFANA_SVC="${GRAFANA_SVC:-kube-prometheus-stack-grafana}"
+GRAFANA_PORT="${GRAFANA_PORT:-13000}"
+GRAFANA_USER="${GRAFANA_USER:-admin}"
+GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-admin}"
+GRAFANA_DASHBOARD_UID="${GRAFANA_DASHBOARD_UID:-upm-clickhouse-overview}"
 TARGET_OUT="${TARGET_OUT:-clickhouse/phase-05/prometheus-targets.json}"
 SUMMARY_OUT="${SUMMARY_OUT:-clickhouse/phase-05/metrics-summary.json}"
+GRAFANA_DASHBOARD_OUT="${GRAFANA_DASHBOARD_OUT:-clickhouse/phase-05/grafana-dashboard.json}"
+GRAFANA_PANEL_OUT="${GRAFANA_PANEL_OUT:-clickhouse/phase-05/grafana-panel-query-results.json}"
 
 command -v kubectl >/dev/null
 command -v curl >/dev/null
 command -v jq >/dev/null
 
-mkdir -p "$(dirname "$TARGET_OUT")" "$(dirname "$SUMMARY_OUT")"
+mkdir -p "$(dirname "$TARGET_OUT")" "$(dirname "$SUMMARY_OUT")" "$(dirname "$GRAFANA_DASHBOARD_OUT")" "$(dirname "$GRAFANA_PANEL_OUT")"
+
+cleanup() {
+  if [[ -n "${prometheus_port_forward_pid:-}" ]]; then
+    kill "$prometheus_port_forward_pid" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${grafana_port_forward_pid:-}" ]]; then
+    kill "$grafana_port_forward_pid" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
 
 echo "== Runtime prerequisites =="
 kubectl rollout status deploy/kube-prometheus-stack-operator -n "$PROM_NS" --timeout=180s
 kubectl rollout status statefulset/prometheus-kube-prometheus-stack-prometheus -n "$PROM_NS" --timeout=300s
+kubectl rollout status deploy/kube-prometheus-stack-grafana -n "$PROM_NS" --timeout=300s
 kubectl rollout status deploy/upm-api-server -n upm-system --timeout=180s
 kubectl get podmonitor "${NAME}-exporter-podmon" -n "$NS" >/dev/null
 
@@ -44,8 +62,7 @@ done
 echo
 echo "== Prometheus target query =="
 kubectl port-forward -n "$PROM_NS" "svc/${PROM_SVC}" "${PROM_PORT}:9090" >/tmp/phase05-prometheus-port-forward.log 2>&1 &
-port_forward_pid=$!
-trap 'kill "$port_forward_pid" >/dev/null 2>&1 || true' EXIT
+prometheus_port_forward_pid=$!
 for _ in $(seq 1 30); do
   if curl -fsS "http://127.0.0.1:${PROM_PORT}/-/ready" >/dev/null 2>&1; then
     break
@@ -95,4 +112,78 @@ jq -M '{
   warnings
 }' "$SUMMARY_OUT"
 
+echo
+echo "== Grafana datasource and dashboard =="
+kubectl port-forward -n "$PROM_NS" "svc/${GRAFANA_SVC}" "${GRAFANA_PORT}:80" >/tmp/phase05-grafana-port-forward.log 2>&1 &
+grafana_port_forward_pid=$!
+for _ in $(seq 1 60); do
+  if curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" "http://127.0.0.1:${GRAFANA_PORT}/api/health" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
+  "http://127.0.0.1:${GRAFANA_PORT}/api/datasources/uid/prometheus" \
+  | jq -e '.type=="prometheus" and .url=="http://kube-prometheus-stack-prometheus.monitoring.svc:9090"' >/dev/null
+curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
+  "http://127.0.0.1:${GRAFANA_PORT}/api/dashboards/uid/${GRAFANA_DASHBOARD_UID}" \
+  | jq . >"$GRAFANA_DASHBOARD_OUT"
+jq -e '.dashboard.title=="UPM ClickHouse Monitoring Overview" and (.dashboard.panels | length)>=11' "$GRAFANA_DASHBOARD_OUT" >/dev/null
+
+dashboard_panel_count="$(jq '[.dashboard.panels[] | select(.targets[0].expr? != null)] | length' "$GRAFANA_DASHBOARD_OUT")"
+if [[ "$dashboard_panel_count" != "11" ]]; then
+  jq '.dashboard.panels[] | {title, targets}' "$GRAFANA_DASHBOARD_OUT"
+  echo "ERROR: expected 11 Grafana panel queries, got ${dashboard_panel_count}" >&2
+  exit 1
+fi
+
+panel_tmp="${GRAFANA_PANEL_OUT}.tmp"
+printf '[' >"$panel_tmp"
+first_panel=1
+run_grafana_panel_query() {
+  local panel="$1"
+  local query="$2"
+  local response count
+  response="$(
+    curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" --get \
+      "http://127.0.0.1:${GRAFANA_PORT}/api/datasources/proxy/uid/prometheus/api/v1/query" \
+      --data-urlencode "query=${query}"
+  )"
+  count="$(printf '%s' "$response" | jq '[.data.result[]] | length')"
+  if [[ "$count" == "0" ]]; then
+    printf '%s\n' "$response" | jq .
+    echo "ERROR: Grafana dashboard panel ${panel} returned no data" >&2
+    exit 1
+  fi
+  if [[ "$first_panel" == "0" ]]; then
+    printf ',\n' >>"$panel_tmp"
+  fi
+  first_panel=0
+  jq -nc --arg panel "$panel" --arg query "$query" --argjson resultCount "$count" \
+    '{panel:$panel, query:$query, resultCount:$resultCount}' >>"$panel_tmp"
+  echo "PASS grafana_panel=${panel} samples=${count}"
+}
+
+while IFS=$'\t' read -r panel query; do
+  run_grafana_panel_query "$panel" "$query"
+done < <(
+  jq -r --arg ns "$NS" --arg cluster "$NAME" '
+    .dashboard.panels[]
+    | select(.targets[0].expr? != null)
+    | [
+        .title,
+        (
+          .targets[0].expr
+          | gsub("\\$namespace"; $ns)
+          | gsub("\\$cluster"; $cluster)
+        )
+      ]
+    | @tsv
+  ' "$GRAFANA_DASHBOARD_OUT"
+)
+printf ']\n' >>"$panel_tmp"
+jq . "$panel_tmp" >"$GRAFANA_PANEL_OUT"
+rm -f "$panel_tmp"
+
+echo "PASS grafana_dashboard=${GRAFANA_DASHBOARD_UID}"
 echo "PASS phase05_monitoring_runtime_validation"

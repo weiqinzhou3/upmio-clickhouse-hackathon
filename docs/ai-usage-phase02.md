@@ -578,3 +578,33 @@ Codex will summarize submitted evidence and append it to the log below.
     ClickHouse 20, and no warnings.
   - Prometheus-unavailable behavior returned structured HTTP `503`.
   - Evidence is stored under `clickhouse/phase-05/`.
+
+### Entry 013 - Phase 05 Grafana Repair After Human Challenge
+
+- Date: 2026-06-06
+- AI tool: Codex
+- Topic: Repair Phase 05 monitoring to include Grafana dashboard automation and
+  panel-level validation
+- Human challenge:
+  - Prometheus-only validation was not enough for a demo-ready monitoring
+    phase.
+  - Grafana and Prometheus installation/configuration should be automated.
+  - Deployed ClickHouse should be discovered automatically through PodMonitor,
+    and Grafana panels must be proven to return real values.
+- Codex repair:
+  - Extended the Phase 05 spec from Prometheus/API-only monitoring to include
+    an external Grafana datasource and ClickHouse dashboard.
+  - Kept kube-prometheus-stack and Grafana assets outside the UPM repository
+    under `../kube-prometheus-stack/`, because they are environment readiness
+    assets rather than UPMIO source code.
+  - Added automated Grafana image synchronization, Helm values, datasource
+    provisioning, dashboard ConfigMap import, NodePort exposure, and rollout
+    checks to the external environment scripts.
+  - Strengthened `clickhouse/phase-05/scripts/validate-monitoring-runtime.sh`
+    to verify Grafana health, datasource URL, dashboard import, and all
+    required panel queries through the Grafana datasource proxy.
+- Runtime evidence:
+  - Grafana is reachable at `http://192.168.35.201:30300`.
+  - Dashboard `upm-clickhouse-overview` is imported.
+  - All 11 required panel queries returned 4 samples each.
+  - The final validation ended with `PASS phase05_monitoring_runtime_validation`.
