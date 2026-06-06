@@ -24,6 +24,8 @@ type fakeStore struct {
 	createErr          error
 	healthErr          error
 	healthDelay        time.Duration
+	metricsSummary     model.MetricsSummary
+	metricsErr         error
 	activeHealthchecks atomic.Int32
 	maxHealthchecks    atomic.Int32
 }
@@ -68,6 +70,16 @@ func (f *fakeStore) RunHealthcheck(_ context.Context, namespace, name string) (m
 	report.AddCheck("kubernetes_resources", model.HealthStatusPass, model.HealthSeverityCritical, "resources are ready", nil, time.Now())
 	report.Finalize()
 	return report, nil
+}
+
+func (f *fakeStore) GetMetricsSummary(_ context.Context, namespace, name string) (model.MetricsSummary, error) {
+	if f.metricsErr != nil {
+		return model.MetricsSummary{}, f.metricsErr
+	}
+	if f.metricsSummary.Name == "" {
+		f.metricsSummary = model.MetricsSummary{Namespace: namespace, Name: name, Cluster: name, Status: "READY"}
+	}
+	return f.metricsSummary, nil
 }
 
 func TestHealthz(t *testing.T) {
@@ -255,6 +267,37 @@ func TestRunHealthcheckSerializesSameCluster(t *testing.T) {
 	wait.Wait()
 	if got := store.maxHealthchecks.Load(); got != 1 {
 		t.Fatalf("expected one concurrent healthcheck for the same cluster, got %d", got)
+	}
+}
+
+func TestGetMetricsSummary(t *testing.T) {
+	handler := newTestServer(&fakeStore{})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/metrics/summary", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body)
+	}
+	if !strings.Contains(response.Body.String(), `"status":"READY"`) || !strings.Contains(response.Body.String(), `"requestId":"req-`) {
+		t.Fatalf("unexpected response: %s", response.Body)
+	}
+}
+
+func TestGetMetricsSummaryReturnsPrometheusUnavailable(t *testing.T) {
+	handler := newTestServer(&fakeStore{metricsErr: &model.APIError{
+		Status:  http.StatusServiceUnavailable,
+		Code:    "PROMETHEUS_UNAVAILABLE",
+		Message: "Prometheus is unavailable",
+	}})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/metrics/summary", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusServiceUnavailable || !strings.Contains(response.Body.String(), `"code":"PROMETHEUS_UNAVAILABLE"`) {
+		t.Fatalf("unexpected response: %s", response.Body)
 	}
 }
 

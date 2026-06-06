@@ -48,6 +48,7 @@ func NewServer(store platform.Store, logger *slog.Logger, timeout time.Duration)
 	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/resources", server.getClusterResources)
 	mux.HandleFunc("POST /api/v1/clusters/{namespace}/{name}/healthcheck", server.runHealthcheck)
 	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/healthcheck/latest", server.getLatestHealthcheck)
+	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/metrics/summary", server.getMetricsSummary)
 	return server.middleware(mux)
 }
 
@@ -215,6 +216,21 @@ func (s *Server) getLatestHealthcheck(w http.ResponseWriter, r *http.Request) {
 	}
 	report.RequestID = requestID(r.Context())
 	writeJSON(w, http.StatusOK, report)
+}
+
+func (s *Server) getMetricsSummary(w http.ResponseWriter, r *http.Request) {
+	namespace, name := r.PathValue("namespace"), r.PathValue("name")
+	if err := model.ValidateClusterIdentity(namespace, name); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	summary, err := s.store.GetMetricsSummary(r.Context(), namespace, name)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	summary.RequestID = requestID(r.Context())
+	writeJSON(w, http.StatusOK, summary)
 }
 
 func (s *Server) writeValidationError(w http.ResponseWriter, r *http.Request, err error) {

@@ -12,13 +12,15 @@ import (
 	"github.com/weiqinzhou3/upmio-clickhouse-hackathon/api-server/internal/api"
 	"github.com/weiqinzhou3/upmio-clickhouse-hackathon/api-server/internal/config"
 	"github.com/weiqinzhou3/upmio-clickhouse-hackathon/api-server/internal/kube"
+	"github.com/weiqinzhou3/upmio-clickhouse-hackathon/api-server/internal/prometheus"
 )
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	cfg := config.FromEnv()
 
-	store, err := kube.NewInClusterStore()
+	prometheusClient := prometheus.NewClient(cfg.PrometheusBaseURL, cfg.PrometheusTimeout)
+	store, err := kube.NewInClusterStore(prometheusClient)
 	if err != nil {
 		logger.Error("initialize Kubernetes clients", "error", err)
 		os.Exit(1)

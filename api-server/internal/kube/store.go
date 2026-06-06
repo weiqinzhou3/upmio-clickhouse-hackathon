@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/weiqinzhou3/upmio-clickhouse-hackathon/api-server/internal/model"
+	promclient "github.com/weiqinzhou3/upmio-clickhouse-hackathon/api-server/internal/prometheus"
 )
 
 const (
@@ -49,6 +51,7 @@ const (
 	healthcheckDatabase                = "upm_healthcheck"
 	healthcheckLocalTable              = "local_events"
 	healthcheckDistributedTable        = "dist_events"
+	clickHouseContainerName            = "clickhouse"
 )
 
 var (
@@ -61,15 +64,23 @@ var (
 	unitGVR = schema.GroupVersionResource{
 		Group: "upm.syntropycloud.io", Version: "v1alpha2", Resource: "units",
 	}
+	podMonitorGVR = schema.GroupVersionResource{
+		Group: "monitoring.coreos.com", Version: "v1", Resource: "podmonitors",
+	}
 )
+
+type prometheusQuerier interface {
+	Query(context.Context, string) ([]promclient.Sample, error)
+}
 
 type Store struct {
 	dynamic    dynamic.Interface
 	core       kubernetes.Interface
 	restConfig *rest.Config
+	prometheus prometheusQuerier
 }
 
-func NewInClusterStore() (*Store, error) {
+func NewInClusterStore(prometheusClient prometheusQuerier) (*Store, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("load in-cluster Kubernetes config: %w", err)
@@ -84,11 +95,15 @@ func NewInClusterStore() (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create core Kubernetes client: %w", err)
 	}
-	return &Store{dynamic: dynamicClient, core: coreClient, restConfig: config}, nil
+	return &Store{dynamic: dynamicClient, core: coreClient, restConfig: config, prometheus: prometheusClient}, nil
 }
 
 func NewStore(dynamicClient dynamic.Interface, coreClient kubernetes.Interface) *Store {
 	return &Store{dynamic: dynamicClient, core: coreClient}
+}
+
+func NewStoreWithPrometheus(dynamicClient dynamic.Interface, coreClient kubernetes.Interface, prometheusClient prometheusQuerier) *Store {
+	return &Store{dynamic: dynamicClient, core: coreClient, prometheus: prometheusClient}
 }
 
 func (s *Store) CreateCluster(ctx context.Context, request model.CreateClusterRequest) (model.ClusterSummary, error) {
@@ -396,6 +411,195 @@ func (s *Store) RunHealthcheck(ctx context.Context, namespace, name string) (mod
 	addSecretLeakageCheck(&report, sensitiveValues, sensitiveErr)
 	report.Finalize()
 	return report, nil
+}
+
+func (s *Store) GetMetricsSummary(ctx context.Context, namespace, name string) (model.MetricsSummary, error) {
+	if _, err := s.GetCluster(ctx, namespace, name); err != nil {
+		return model.MetricsSummary{}, err
+	}
+	if s.prometheus == nil {
+		return model.MetricsSummary{}, prometheusUnavailableError(errors.New("Prometheus client is not configured"))
+	}
+
+	_, serverPods, err := s.listClusterPods(ctx, namespace, name)
+	if err != nil {
+		return model.MetricsSummary{}, internalError("list expected ClickHouse Pods", err)
+	}
+	expectedPods := make([]string, 0, len(serverPods))
+	for _, pod := range serverPods {
+		expectedPods = append(expectedPods, pod.Name)
+	}
+	sort.Strings(expectedPods)
+	podPattern := regexp.QuoteMeta(name) + `-[0-9]+`
+
+	summary := model.MetricsSummary{
+		Namespace:   namespace,
+		Name:        name,
+		Cluster:     name,
+		Status:      "READY",
+		CollectedAt: time.Now().UTC(),
+		PodMonitor: model.MetricsPodMonitor{
+			Name: name + "-exporter-podmon",
+		},
+		Targets:  make([]model.MetricsTarget, 0, len(expectedPods)),
+		Warnings: []string{},
+		Summary: model.MetricsCategorySummary{
+			CPU:        []model.MetricSample{},
+			Memory:     []model.MetricSample{},
+			Storage:    []model.MetricSample{},
+			ClickHouse: []model.MetricSample{},
+		},
+	}
+
+	if _, err := s.dynamic.Resource(podMonitorGVR).Namespace(namespace).Get(ctx, summary.PodMonitor.Name, metav1.GetOptions{}); err == nil {
+		summary.PodMonitor.Exists = true
+	} else {
+		summary.Warnings = append(summary.Warnings, fmt.Sprintf("PodMonitor %s/%s is not readable or does not exist", namespace, summary.PodMonitor.Name))
+	}
+
+	targetQuery := fmt.Sprintf(`up{namespace=%q,pod=~%q}`, namespace, podPattern)
+	targetSamples, err := s.prometheus.Query(ctx, targetQuery)
+	if err != nil {
+		return model.MetricsSummary{}, prometheusUnavailableError(err)
+	}
+	targetState := make(map[string]bool, len(targetSamples))
+	for _, sample := range targetSamples {
+		if pod := sample.Metric["pod"]; pod != "" {
+			targetState[pod] = targetState[pod] || sample.Value == 1
+		}
+	}
+	for _, pod := range expectedPods {
+		up, exists := targetState[pod]
+		summary.Targets = append(summary.Targets, model.MetricsTarget{Name: pod, Up: exists && up})
+		if !exists {
+			summary.Warnings = append(summary.Warnings, fmt.Sprintf("Prometheus target for %s is missing", pod))
+		} else if !up {
+			summary.Warnings = append(summary.Warnings, fmt.Sprintf("Prometheus target for %s is down", pod))
+		}
+	}
+
+	queries := []struct {
+		category string
+		query    string
+		unit     string
+		assign   func([]model.MetricSample)
+	}{
+		{
+			category: "cpu",
+			query:    fmt.Sprintf(`sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=%q,pod=~%q,container=%q}[2m]))`, namespace, podPattern, clickHouseContainerName),
+			unit:     "cores",
+			assign:   func(samples []model.MetricSample) { summary.Summary.CPU = samples },
+		},
+		{
+			category: "memory",
+			query:    fmt.Sprintf(`container_memory_working_set_bytes{namespace=%q,pod=~%q,container=%q}`, namespace, podPattern, clickHouseContainerName),
+			unit:     "bytes",
+			assign:   func(samples []model.MetricSample) { summary.Summary.Memory = samples },
+		},
+		{
+			category: "clickhouse",
+			query: fmt.Sprintf(`{__name__=~"ClickHouseProfileEvents_(Query|InsertQuery|InsertedRows|InsertedBytes)|ClickHouseMetrics_MemoryTracking",namespace=%q,pod=~%q}`,
+				namespace, podPattern),
+			assign: func(samples []model.MetricSample) { summary.Summary.ClickHouse = samples },
+		},
+	}
+	for _, item := range queries {
+		samples, queryErr := s.prometheus.Query(ctx, item.query)
+		if queryErr != nil {
+			summary.Warnings = append(summary.Warnings, fmt.Sprintf("%s metrics query failed", item.category))
+			continue
+		}
+		converted := metricSamples(samples, item.unit)
+		item.assign(converted)
+		if len(converted) == 0 {
+			summary.Warnings = append(summary.Warnings, fmt.Sprintf("%s metrics are missing", item.category))
+		}
+	}
+
+	storageSamples, storageFound, storageErr := firstAvailableMetrics(ctx, s.prometheus,
+		fmt.Sprintf(`kubelet_volume_stats_used_bytes{namespace=%q,persistentvolumeclaim=~%q}`, namespace, regexp.QuoteMeta(name)+`-[0-9]+-data`),
+		fmt.Sprintf(`{__name__=~"ClickHouseAsyncMetrics_Disk(Used|Total|Available)_default",namespace=%q,pod=~%q}`, namespace, podPattern),
+	)
+	if storageErr != nil {
+		summary.Warnings = append(summary.Warnings, "storage metrics queries failed")
+	} else {
+		summary.Summary.Storage = metricSamples(storageSamples, "bytes")
+		if !storageFound {
+			summary.Warnings = append(summary.Warnings, "storage metrics are missing")
+		}
+	}
+
+	if !summary.PodMonitor.Exists || len(expectedPods) == 0 || len(summary.Warnings) > 0 {
+		summary.Status = "DEGRADED"
+	}
+	return summary, nil
+}
+
+func firstAvailableMetrics(ctx context.Context, querier prometheusQuerier, queries ...string) ([]promclient.Sample, bool, error) {
+	var lastErr error
+	hadSuccess := false
+	for _, query := range queries {
+		samples, err := querier.Query(ctx, query)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		hadSuccess = true
+		if len(samples) > 0 {
+			return samples, true, nil
+		}
+	}
+	if hadSuccess {
+		return nil, false, nil
+	}
+	return nil, false, lastErr
+}
+
+func metricSamples(samples []promclient.Sample, unit string) []model.MetricSample {
+	allowedLabels := map[string]bool{
+		"namespace":             true,
+		"pod":                   true,
+		"node":                  true,
+		"persistentvolumeclaim": true,
+	}
+	result := make([]model.MetricSample, 0, len(samples))
+	for _, sample := range samples {
+		name := sample.Metric["pod"]
+		if name == "" {
+			name = sample.Metric["persistentvolumeclaim"]
+		}
+		if metricName := sample.Metric["__name__"]; metricName != "" {
+			name = metricName
+		}
+		metricLabels := make(map[string]string, len(sample.Metric))
+		for key, value := range sample.Metric {
+			if allowedLabels[key] {
+				metricLabels[key] = value
+			}
+		}
+		result = append(result, model.MetricSample{
+			Name:   name,
+			Labels: metricLabels,
+			Value:  sample.Value,
+			Unit:   unit,
+		})
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Name == result[j].Name {
+			return result[i].Labels["pod"] < result[j].Labels["pod"]
+		}
+		return result[i].Name < result[j].Name
+	})
+	return result
+}
+
+func prometheusUnavailableError(err error) error {
+	return &model.APIError{
+		Status:  http.StatusServiceUnavailable,
+		Code:    "PROMETHEUS_UNAVAILABLE",
+		Message: "Prometheus is unavailable",
+		Err:     err,
+	}
 }
 
 func (s *Store) checkProject(ctx context.Context, report *model.HealthcheckReport, namespace string) {
@@ -1107,6 +1311,9 @@ INSERT INTO %[1]s.%[4]s VALUES
 }
 
 func healthcheckProbeRowCount(topology model.Topology) int {
+	// Four rows per shard gives deterministic validation coverage for the
+	// supported 2- and 4-shard MVP topologies; SQL assertions below remain the
+	// authoritative check for the actual post-write distribution.
 	rows := topology.Shards * 4
 	if rows < 8 {
 		return 8

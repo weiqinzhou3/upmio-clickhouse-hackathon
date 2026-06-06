@@ -1,0 +1,68 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "vector",
+    "result": [
+      {
+        "metric": {
+          "__name__": "up",
+          "container": "clickhouse",
+          "endpoint": "metrics",
+          "instance": "192.168.237.129:9363",
+          "job": "upm-clickhouse-phase03-runtime/clickhouse-phase03-exporter-podmon",
+          "namespace": "upm-clickhouse-phase03-runtime",
+          "pod": "clickhouse-phase03-0"
+        },
+        "value": [
+          1780766416.401,
+          "1"
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "up",
+          "container": "clickhouse",
+          "endpoint": "metrics",
+          "instance": "192.168.244.71:9363",
+          "job": "upm-clickhouse-phase03-runtime/clickhouse-phase03-exporter-podmon",
+          "namespace": "upm-clickhouse-phase03-runtime",
+          "pod": "clickhouse-phase03-1"
+        },
+        "value": [
+          1780766416.401,
+          "1"
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "up",
+          "container": "clickhouse",
+          "endpoint": "metrics",
+          "instance": "192.168.244.72:9363",
+          "job": "upm-clickhouse-phase03-runtime/clickhouse-phase03-exporter-podmon",
+          "namespace": "upm-clickhouse-phase03-runtime",
+          "pod": "clickhouse-phase03-3"
+        },
+        "value": [
+          1780766416.401,
+          "1"
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "up",
+          "container": "clickhouse",
+          "endpoint": "metrics",
+          "instance": "192.168.41.202:9363",
+          "job": "upm-clickhouse-phase03-runtime/clickhouse-phase03-exporter-podmon",
+          "namespace": "upm-clickhouse-phase03-runtime",
+          "pod": "clickhouse-phase03-2"
+        },
+        "value": [
+          1780766416.401,
+          "1"
+        ]
+      }
+    ]
+  }
+}

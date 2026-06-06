@@ -547,3 +547,132 @@ Codex will summarize submitted evidence and append it to the log below.
     behavior and executable evidence.
 - Resolution artifact:
   - `docs/review/phase-04-review-response.md`
+
+### Entry 012 - Phase 05 Monitoring Start Review and Implementation
+
+- Date: 2026-06-06
+- AI tool: Codex
+- Topic: Start-review and implement the real Prometheus monitoring closure
+- Human decisions:
+  - Accepted the Phase 05 start-review findings.
+  - Required `kube-prometheus-stack` environment assets to live outside the
+    UPM repository because they are environment readiness, not UPMIO product
+    code.
+- Codex decisions and implementation:
+  - Rejected PodMonitor-only or paper validation as sufficient Phase 05
+    acceptance; required a real Prometheus Server and 4/4 target proof.
+  - Kept external chart values and automated image synchronization under
+    `../kube-prometheus-stack/`, outside Git.
+  - Implemented a fixed-query Prometheus client and registered
+    `/api/v1/clusters/{namespace}/{name}/metrics/summary` in
+    `upm-api-server`.
+  - Compared expected Kubernetes ClickHouse Pods with Prometheus target state
+    to prevent partial discovery from producing a false `READY`.
+  - Used ClickHouse native disk used/total/available metrics as the real
+    storage fallback after runtime evidence proved that the lab `local-path`
+    provisioner does not expose kubelet PVC volume statistics.
+  - Reduced returned metric labels to stable user-relevant fields after
+    inspecting the first real API response.
+- Runtime evidence:
+  - Full chain passed with 4/4 targets up, CPU 4, memory 4, storage 12,
+    ClickHouse 20, and no warnings.
+  - Prometheus-unavailable behavior returned structured HTTP `503`.
+  - Evidence is stored under `clickhouse/phase-05/`.
+
+### Entry 013 - Phase 05 Grafana Repair After Human Challenge
+
+- Date: 2026-06-06
+- AI tool: Codex
+- Topic: Repair Phase 05 monitoring to include Grafana dashboard automation and
+  panel-level validation
+- Human challenge:
+  - Prometheus-only validation was not enough for a demo-ready monitoring
+    phase.
+  - Grafana and Prometheus installation/configuration should be automated.
+  - Deployed ClickHouse should be discovered automatically through PodMonitor,
+    and Grafana panels must be proven to return real values.
+- Codex repair:
+  - Extended the Phase 05 spec from Prometheus/API-only monitoring to include
+    an external Grafana datasource and ClickHouse dashboard.
+  - Kept kube-prometheus-stack and Grafana assets outside the UPM repository
+    under `../kube-prometheus-stack/`, because they are environment readiness
+    assets rather than UPMIO source code.
+  - Added automated Grafana image synchronization, Helm values, datasource
+    provisioning, dashboard ConfigMap import, NodePort exposure, and rollout
+    checks to the external environment scripts.
+  - Strengthened `clickhouse/phase-05/scripts/validate-monitoring-runtime.sh`
+    to verify Grafana health, datasource URL, dashboard import, and all
+    required panel queries through the Grafana datasource proxy.
+- Runtime evidence:
+  - Grafana is reachable at `http://192.168.35.201:30300`.
+  - Dashboard `upm-clickhouse-overview` is imported.
+  - Initial temporary dashboard validation proved the Grafana datasource path
+    with 11 required panel queries.
+  - The final validation ended with `PASS phase05_monitoring_runtime_validation`.
+
+### Entry 014 - Phase 05 Existing Grafana Dashboard Adaptation
+
+- Date: 2026-06-07
+- AI tool: Codex
+- Topic: Replace the temporary Grafana dashboard with an adapted existing
+  dashboard and record future one-click environment preparation needs
+- Human challenge:
+  - The generated dashboard was not good enough.
+  - Use the existing user-provided `23285_rev1.json` dashboard and tune it.
+  - Save and register the dashboard.
+  - After all MVP work, prepare documentation and one-click scripts for
+    Kubernetes, UPMIO, kube-prometheus-stack, API-driven ClickHouse
+    deployment, API operations, and inspection.
+- Codex repair:
+  - Adapted the source dashboard
+    `ClickHouse and Keeper Comprehensive Dashboard` into
+    `clickhouse/grafana/upm-clickhouse-23285-dashboard.json`.
+  - Rewrote dashboard datasource and PromQL label selectors to the Phase 05
+    `namespace`/`pod` PodMonitor label model.
+  - Dropped node-exporter-only panels because node-exporter is not enabled in
+    the Phase 05 external monitoring environment.
+  - Dropped the standalone Keeper service overview because standalone Keeper
+    metrics are not scraped in Phase 05.
+  - Kept ClickHouse client-to-Keeper panels because those metrics are native
+    ClickHouse profile events exposed by the server pods.
+  - Registered the dashboard through the Grafana sidecar ConfigMap and fixed
+    the large-dashboard ConfigMap workflow by using delete/create instead of
+    `kubectl apply`, avoiding the Kubernetes last-applied annotation limit.
+  - Reset Grafana admin password to match the external environment values so
+    sidecar reload and validation use consistent credentials.
+  - Updated validation to execute every visible dashboard target query through
+    the Grafana datasource proxy.
+- Runtime evidence:
+  - Dashboard `upm-clickhouse-overview` is registered with title
+    `UPM ClickHouse Operational Dashboard`.
+  - The imported dashboard has 185 panels.
+  - 170 data panels and 207 visible target queries returned samples.
+  - The final validation ended with `PASS phase05_monitoring_runtime_validation`.
+
+### Entry 015 - Phase 05 Review Response
+
+- Date: 2026-06-07
+- AI tools: Claude Code, Codex
+- Topic: Review and closeout repair for Phase 05 monitoring
+- Review artifact:
+  - `docs/review/phase-05-review.md`
+- Claude Code verdict:
+  - PASS, proceed to Phase 06.
+  - Five non-blocking findings: hardcoded ClickHouse container name in PromQL,
+    missing direct `GetMetricsSummary` orchestration tests, dashboard canonical
+    versus runtime evidence relationship, probe row-count documentation, and
+    `firstAvailableMetrics` empty-result semantics.
+- Codex response:
+  - Accepted the PASS verdict but treated non-blocking findings as closeout
+    hardening work where the repair was low risk.
+  - Added a `clickHouseContainerName` constant for CPU/memory PromQL.
+  - Added direct table-driven `GetMetricsSummary` orchestration tests covering
+    READY, DEGRADED, missing target, query error, missing PodMonitor, storage
+    fallback, and all-storage-empty behavior.
+  - Documented the canonical Grafana dashboard asset versus the runtime
+    Grafana API evidence copy.
+  - Clarified the healthcheck probe row-count multiplier.
+  - Changed `firstAvailableMetrics` to distinguish all-empty successful query
+    results from all-error query results.
+- Resolution artifact:
+  - `docs/review/phase-05-review-response.md`

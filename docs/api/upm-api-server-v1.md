@@ -1,8 +1,8 @@
 # UPM API Server v1 API Reference
 
-- Version: 0.6
+- Version: 0.7
 - Date: 2026-06-06
-- Status: Implemented and runtime validated through Phase 04
+- Status: Implemented and runtime validated through Phase 05
 - Owner: zqw
 - Related:
   - ../master-spec.md
@@ -118,6 +118,7 @@ Current error codes:
 | `PACKAGE_TOPOLOGY_MISMATCH` | 422 | Requested topology differs from installed package topology |
 | `CLUSTER_NOT_FOUND` | 404 | Managed cluster does not exist |
 | `HEALTHCHECK_REPORT_NOT_FOUND` | 404 | Latest in-memory healthcheck report does not exist |
+| `PROMETHEUS_UNAVAILABLE` | 503 | Configured Prometheus API cannot be queried |
 | `KUBERNETES_FORBIDDEN` | 403 | API server RBAC does not permit the operation |
 | `UPMIO_UNITSET_NOT_READY` | 504 | Keeper UnitSet did not become ready before timeout |
 | `KUBERNETES_API_ERROR` | 500 | Kubernetes API operation failed |
@@ -610,14 +611,78 @@ Not-found response:
 }
 ```
 
-## 7. Not Supported After Phase 04
+## 7. Metrics API
+
+### 7.1 Get Prometheus Metrics Summary
+
+```http
+GET /api/v1/clusters/{namespace}/{name}/metrics/summary
+```
+
+Purpose:
+
+- Compare the expected ClickHouse Server Pods with real Prometheus target
+  results.
+- Return fixed-query CPU, memory, PVC/storage, and ClickHouse native metric
+  summaries.
+- This API does not expose arbitrary user-supplied PromQL.
+
+Path parameters:
+
+| Parameter | Required | Description |
+|---|---:|---|
+| `namespace` | Yes | Managed ClickHouse cluster namespace |
+| `name` | Yes | Managed ClickHouse cluster name |
+
+Query parameters: none.
+
+Request body: none.
+
+Success HTTP status: `200 OK`.
+
+Status behavior:
+
+| Status | Meaning |
+|---|---|
+| `READY` | PodMonitor exists, every expected target is up, and all required metric categories contain samples |
+| `DEGRADED` | Prometheus is available, but a target or required metric category is missing |
+
+Prometheus unavailable returns HTTP `503` with error code
+`PROMETHEUS_UNAVAILABLE`.
+
+Response fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `namespace` | string | Managed cluster namespace |
+| `name` / `cluster` | string | Managed cluster name |
+| `status` | string | `READY` or `DEGRADED` |
+| `collectedAt` | timestamp | Summary collection time |
+| `podMonitor.name` | string | Expected UnitSet-generated PodMonitor name |
+| `podMonitor.exists` | boolean | Whether the API server can read the PodMonitor |
+| `targets[]` | array | Expected ClickHouse Server Pods and real Prometheus up state |
+| `summary.cpu[]` | array | Per-Pod CPU samples in cores |
+| `summary.memory[]` | array | Per-Pod working-set memory samples in bytes |
+| `summary.storage[]` | array | Storage usage samples from kubelet PVC metrics, with ClickHouse native disk used/total/available metrics as the local-path fallback |
+| `summary.clickhouse[]` | array | Fixed ClickHouse native query/write/memory metrics |
+| `warnings[]` | array | Missing target, PodMonitor, or metric evidence |
+| `requestId` | string | Request correlation ID |
+
+Usage:
+
+```bash
+curl -fsS \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/metrics/summary" \
+  | jq .
+```
+
+## 8. Not Supported After Phase 05
 
 These APIs are registered in later phase specs and must not be claimed as
 supported until implemented and validated:
 
 | API | Phase |
 |---|---|
-| `GET /api/v1/clusters/{namespace}/{name}/metrics/summary` | Phase 05 |
 | `GET /api/v1/clusters/{namespace}/{name}/diagnostics` | Phase 06 |
 | `POST /api/v1/clusters/{namespace}/{name}/backup` | Phase 07 |
 | `POST /api/v1/clusters/{namespace}/{name}/restore` | Phase 07 |
