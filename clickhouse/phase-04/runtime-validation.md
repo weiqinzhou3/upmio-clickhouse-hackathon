@@ -11,6 +11,7 @@
 ```bash
 go fmt ./...
 go test ./...
+go test -race ./...
 go vet ./...
 go build ./...
 SSH_PASSWORD=root ./clickhouse/sync-upm-api-server-image-to-nodes.sh
@@ -43,6 +44,9 @@ Runtime report summary:
 
 ```json
 {
+  "cluster": "clickhouse-phase03",
+  "name": "clickhouse-phase03",
+  "durationMs": 6312,
   "status": "PASS",
   "summary": {
     "passed": 14,
@@ -51,6 +55,12 @@ Runtime report summary:
     "skipped": 0
   }
 }
+```
+
+Service/Endpoint evidence confirmed these required ClickHouse ports:
+
+```text
+tcp=9000 http=8123 interserver=9009 metrics=9363
 ```
 
 Critical checks passed:
@@ -95,6 +105,36 @@ grep -Eino 'CLICKHOUSE_ADMIN_PASSWORD|AES_SECRET_KEY|secretKeyRef' \
 ```
 
 Expected and observed output: no matches.
+
+## Review Repair Validation
+
+Same-cluster concurrency validation started two NodePort healthchecks
+simultaneously. Both completed successfully:
+
+```text
+PASS insertedRows=8
+PASS insertedRows=8
+```
+
+Pre-write drift protection was validated using only the reserved
+`upm_healthcheck` database:
+
+1. Replaced the reserved local validation table with an intentionally
+   incompatible definition.
+2. Inserted one marker row.
+3. Called the healthcheck API.
+4. Confirmed the report failed at the pre-write drift check.
+5. Confirmed the marker row count remained `1`.
+6. Removed the reserved test database and reran the final runtime validation.
+
+Observed result:
+
+```text
+PASS pre_write_drift_protection marker_rows=1
+```
+
+The final runtime validation recreated the correct API-owned validation
+objects and returned `PASS phase04_healthcheck_runtime_validation`.
 
 ## Notes
 

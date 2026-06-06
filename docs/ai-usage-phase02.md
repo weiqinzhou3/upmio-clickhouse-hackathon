@@ -514,3 +514,36 @@ Codex will summarize submitted evidence and append it to the log below.
   - Per `AGENTS.md` phase branch rules, merge `phase-03` into `main` after
     closeout so third-party reviewers can see the complete code on `main`
     while the historical `phase-03` branch remains available.
+
+### Entry 011 - Phase 04 Review Red-Team Closeout
+
+- Date: 2026-06-06
+- AI tools: Claude Code, Codex
+- Topic: Review and repair the Phase 04 Day1 healthcheck implementation
+- Review artifact:
+  - `docs/review/phase-04-review.md`
+- Claude Code verdict:
+  - PASS, proceed to Phase 05.
+  - Four non-blocking findings: unused ClickHouse HTTP client, limited kube
+    healthcheck unit tests, narrow secret-leak scan, and a suggested
+    cluster-ready precondition.
+- Codex red-team verification:
+  - Accepted removal of the unused ClickHouse HTTP client.
+  - Accepted stronger pure-function and Service/Endpoint tests.
+  - Strengthened secret protection from literal field-name matching to actual
+    referenced Secret-value redaction and validation.
+  - Rejected the suggested cluster-ready early return because healthcheck must
+    diagnose degraded and provisioning clusters rather than stop before
+    producing individual check results.
+  - Found additional gaps not identified in the Claude report: drift was
+    checked after table mutation, replica row validation hardcoded `4`,
+    Service ports were not validated, same-cluster probes were not serialized,
+    and the report omitted `cluster`/`durationMs`.
+- Methodology evidence:
+  - A PASS review is treated as evidence, not an automatic merge decision.
+  - Codex re-compared the implementation with the confirmed phase spec and
+    challenged both the implementation and reviewer recommendations.
+  - Review findings were accepted, rejected, or expanded based on product
+    behavior and executable evidence.
+- Resolution artifact:
+  - `docs/review/phase-04-review-response.md`

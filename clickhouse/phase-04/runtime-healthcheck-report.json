@@ -1,9 +1,11 @@
 {
   "namespace": "upm-clickhouse-phase03-runtime",
   "name": "clickhouse-phase03",
+  "cluster": "clickhouse-phase03",
   "status": "PASS",
-  "startedAt": "2026-06-06T08:11:18.255125985Z",
-  "completedAt": "2026-06-06T08:11:20.932460166Z",
+  "startedAt": "2026-06-06T10:47:58.926276521Z",
+  "completedAt": "2026-06-06T10:48:05.238691797Z",
+  "durationMs": 6312,
   "summary": {
     "passed": 14,
     "warnings": 0,
@@ -19,8 +21,8 @@
       "evidence": {
         "project": "upm-clickhouse-phase03-runtime"
       },
-      "startedAt": "2026-06-06T08:11:18.255126207Z",
-      "endedAt": "2026-06-06T08:11:18.256523195Z"
+      "startedAt": "2026-06-06T10:47:58.9321421Z",
+      "endedAt": "2026-06-06T10:47:58.933696462Z"
     },
     {
       "name": "keeper_unitset_ready",
@@ -35,8 +37,8 @@
         "specUnits": 3,
         "unitSet": "clickhouse-phase03-keeper"
       },
-      "startedAt": "2026-06-06T08:11:18.25652375Z",
-      "endedAt": "2026-06-06T08:11:18.258450801Z"
+      "startedAt": "2026-06-06T10:47:58.93369758Z",
+      "endedAt": "2026-06-06T10:47:58.93664449Z"
     },
     {
       "name": "server_unitset_ready",
@@ -51,8 +53,8 @@
         "specUnits": 4,
         "unitSet": "clickhouse-phase03"
       },
-      "startedAt": "2026-06-06T08:11:18.258451801Z",
-      "endedAt": "2026-06-06T08:11:18.260989587Z"
+      "startedAt": "2026-06-06T10:47:58.936645024Z",
+      "endedAt": "2026-06-06T10:47:58.939670133Z"
     },
     {
       "name": "pods_ready",
@@ -77,8 +79,8 @@
           "clickhouse-phase03-3"
         ]
       },
-      "startedAt": "2026-06-06T08:11:18.266676105Z",
-      "endedAt": "2026-06-06T08:11:18.266680924Z"
+      "startedAt": "2026-06-06T10:47:58.945049849Z",
+      "endedAt": "2026-06-06T10:47:58.945054565Z"
     },
     {
       "name": "pvc_bound",
@@ -99,8 +101,8 @@
           "clickhouse-phase03-keeper-2-data"
         ]
       },
-      "startedAt": "2026-06-06T08:11:18.2666811Z",
-      "endedAt": "2026-06-06T08:11:18.26914263Z"
+      "startedAt": "2026-06-06T10:47:58.945055042Z",
+      "endedAt": "2026-06-06T10:47:58.947927362Z"
     },
     {
       "name": "services_endpoints",
@@ -119,7 +121,15 @@
           "clickhouse-phase03-keeper-2-svc": 1,
           "clickhouse-phase03-keeper-headless-svc": 3
         },
+        "missingEndpointPorts": {},
         "missingReadyEndpoints": [],
+        "missingServicePorts": {},
+        "requiredServerPorts": {
+          "http": 8123,
+          "interserver": 9009,
+          "metrics": 9363,
+          "tcp": 9000
+        },
         "services": [
           "clickhouse-phase03-0-svc",
           "clickhouse-phase03-1-svc",
@@ -132,8 +142,8 @@
           "clickhouse-phase03-keeper-headless-svc"
         ]
       },
-      "startedAt": "2026-06-06T08:11:18.269143255Z",
-      "endedAt": "2026-06-06T08:11:18.27388065Z"
+      "startedAt": "2026-06-06T10:47:58.947928017Z",
+      "endedAt": "2026-06-06T10:47:58.952873218Z"
     },
     {
       "name": "keeper_ruok",
@@ -148,8 +158,8 @@
           "clickhouse-phase03-keeper-2": "imok"
         }
       },
-      "startedAt": "2026-06-06T08:11:18.273881045Z",
-      "endedAt": "2026-06-06T08:11:18.512072734Z"
+      "startedAt": "2026-06-06T10:47:58.952873679Z",
+      "endedAt": "2026-06-06T10:47:59.192452776Z"
     },
     {
       "name": "keeper_leader_follower",
@@ -165,8 +175,8 @@
           "clickhouse-phase03-keeper-2": "leader"
         }
       },
-      "startedAt": "2026-06-06T08:11:18.512073169Z",
-      "endedAt": "2026-06-06T08:11:18.74277333Z"
+      "startedAt": "2026-06-06T10:47:59.192453351Z",
+      "endedAt": "2026-06-06T10:47:59.415882577Z"
     },
     {
       "name": "clickhouse_select_1",
@@ -177,8 +187,8 @@
         "pod": "clickhouse-phase03-0",
         "result": "1"
       },
-      "startedAt": "2026-06-06T08:11:18.742773979Z",
-      "endedAt": "2026-06-06T08:11:18.894429115Z"
+      "startedAt": "2026-06-06T10:47:59.415883461Z",
+      "endedAt": "2026-06-06T10:47:59.562206907Z"
     },
     {
       "name": "system_clusters_topology",
@@ -197,8 +207,8 @@
         },
         "sampleQueryPod": "clickhouse-phase03-0"
       },
-      "startedAt": "2026-06-06T08:11:18.894430885Z",
-      "endedAt": "2026-06-06T08:11:19.027364288Z"
+      "startedAt": "2026-06-06T10:47:59.562209633Z",
+      "endedAt": "2026-06-06T10:47:59.706222103Z"
     },
     {
       "name": "write_read_probe",
@@ -212,8 +222,8 @@
         "localTable": "local_events",
         "pod": "clickhouse-phase03-0"
       },
-      "startedAt": "2026-06-06T08:11:19.027364639Z",
-      "endedAt": "2026-06-06T08:11:20.712058769Z"
+      "startedAt": "2026-06-06T10:47:59.706222839Z",
+      "endedAt": "2026-06-06T10:48:04.976031308Z"
     },
     {
       "name": "replica_health",
@@ -226,8 +236,8 @@
         "rows": 4,
         "unhealthyReplicas": []
       },
-      "startedAt": "2026-06-06T08:11:20.712059466Z",
-      "endedAt": "2026-06-06T08:11:20.855547548Z"
+      "startedAt": "2026-06-06T10:48:04.976031986Z",
+      "endedAt": "2026-06-06T10:48:05.143293942Z"
     },
     {
       "name": "metrics_endpoint",
@@ -238,8 +248,8 @@
         "pod": "clickhouse-phase03-0",
         "sample": "# HELP ClickHouse_Info ClickHouse server information\n# TYPE ClickHouse_Info gauge\nClickHouse_Info{name=\"ClickHouse\",version=\"26.3.9.8\",version_describe=\"v26.3.9.8-lts\",version_major=\"26\",version_minor=\"3\",version_patch=\"9\"} 1\n# HELP ClickHouseProfileEvents_Query Number of queries to be interpreted and potentially executed. Does not include queries that failed to parse or were rejected due to AST size limits, quota limits or limits on the number of simultaneously running queries. May include internal queries initiated by ClickHouse itself. Does not count subqueries.\n# TYPE ClickHouseProfileEvents_Query counter"
       },
-      "startedAt": "2026-06-06T08:11:20.85554833Z",
-      "endedAt": "2026-06-06T08:11:20.932198594Z"
+      "startedAt": "2026-06-06T10:48:05.143294647Z",
+      "endedAt": "2026-06-06T10:48:05.237977042Z"
     },
     {
       "name": "no_secret_leakage",
@@ -249,9 +259,9 @@
       "evidence": {
         "forbiddenMatches": []
       },
-      "startedAt": "2026-06-06T08:11:20.932199218Z",
-      "endedAt": "2026-06-06T08:11:20.932459771Z"
+      "startedAt": "2026-06-06T10:48:05.238012791Z",
+      "endedAt": "2026-06-06T10:48:05.238691239Z"
     }
   ],
-  "requestId": "req-029c373498dff4ed"
+  "requestId": "req-90594beef4fd6067"
 }

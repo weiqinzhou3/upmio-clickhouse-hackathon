@@ -5,3 +5,4 @@ compose-operator/
 unit-operator/
 upm-packages/
 api-server/bin/
+api-server/upm-api-server

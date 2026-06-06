@@ -1,6 +1,6 @@
 # UPM API Server v1 API Reference
 
-- Version: 0.5
+- Version: 0.6
 - Date: 2026-06-06
 - Status: Implemented and runtime validated through Phase 04
 - Owner: zqw
@@ -474,6 +474,8 @@ Healthcheck data boundary:
 - The API writes deterministic validation rows only into these reserved tables.
 - Business databases and business tables are not created, modified, or dropped.
 - Existing reserved table definition drift is treated as a failed healthcheck.
+- Existing reserved table definitions are validated before truncate or insert.
+- Concurrent healthchecks for the same cluster are serialized.
 - The report must not contain Secret values, ClickHouse password values, AES
   keys, or credential plaintext.
 
@@ -493,9 +495,11 @@ Success response shape:
 {
   "namespace": "upm-clickhouse-phase03-runtime",
   "name": "clickhouse-phase03",
+  "cluster": "clickhouse-phase03",
   "status": "PASS",
   "startedAt": "2026-06-06T08:00:00Z",
   "completedAt": "2026-06-06T08:00:12Z",
+  "durationMs": 12000,
   "summary": {
     "passed": 14,
     "warnings": 0,
@@ -531,7 +535,7 @@ Current check names:
 | `server_unitset_ready` | critical | ClickHouse Server UnitSet ready units match topology |
 | `pods_ready` | critical | Managed Keeper and ClickHouse Pods are running and ready |
 | `pvc_bound` | critical | Managed data PVCs are bound |
-| `services_endpoints` | critical | Managed Services have ready Endpoints |
+| `services_endpoints` | critical | Managed Services have ready Endpoints and ClickHouse TCP/HTTP/interserver/metrics ports |
 | `keeper_ruok` | critical | Keeper Pods answer `ruok` with `imok` |
 | `keeper_leader_follower` | critical | Keeper quorum has one leader and followers |
 | `clickhouse_select_1` | critical | ClickHouse SQL endpoint accepts `SELECT 1` |
@@ -539,7 +543,7 @@ Current check names:
 | `write_read_probe` | critical | Reserved Distributed write/read probe succeeds |
 | `replica_health` | critical | Reserved replicated table replicas are active and caught up |
 | `metrics_endpoint` | warning | Local Prometheus metrics endpoint is reachable |
-| `no_secret_leakage` | critical | Returned report avoids forbidden secret-like tokens |
+| `no_secret_leakage` | critical | Returned report avoids forbidden secret-like tokens and known Secret values |
 
 Usage:
 

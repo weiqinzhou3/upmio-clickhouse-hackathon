@@ -19,6 +19,9 @@ func TestHealthcheckReportAggregation(t *testing.T) {
 	if report.Summary.Passed != 1 || report.Summary.Warnings != 1 || report.Summary.Failed != 0 {
 		t.Fatalf("unexpected summary: %#v", report.Summary)
 	}
+	if report.Cluster != "clickhouse-phase03" || report.DurationMS < 0 {
+		t.Fatalf("unexpected report identity or duration: %#v", report)
+	}
 }
 
 func TestHealthcheckCriticalFailureWins(t *testing.T) {

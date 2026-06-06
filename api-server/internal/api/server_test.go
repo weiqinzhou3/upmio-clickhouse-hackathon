@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,10 +19,13 @@ import (
 )
 
 type fakeStore struct {
-	clusters  []model.ClusterSummary
-	resources model.ClusterResources
-	createErr error
-	healthErr error
+	clusters           []model.ClusterSummary
+	resources          model.ClusterResources
+	createErr          error
+	healthErr          error
+	healthDelay        time.Duration
+	activeHealthchecks atomic.Int32
+	maxHealthchecks    atomic.Int32
 }
 
 func (f *fakeStore) CreateCluster(_ context.Context, request model.CreateClusterRequest) (model.ClusterSummary, error) {
@@ -50,6 +55,15 @@ func (f *fakeStore) RunHealthcheck(_ context.Context, namespace, name string) (m
 	if f.healthErr != nil {
 		return model.HealthcheckReport{}, f.healthErr
 	}
+	active := f.activeHealthchecks.Add(1)
+	defer f.activeHealthchecks.Add(-1)
+	for {
+		maximum := f.maxHealthchecks.Load()
+		if active <= maximum || f.maxHealthchecks.CompareAndSwap(maximum, active) {
+			break
+		}
+	}
+	time.Sleep(f.healthDelay)
 	report := model.NewHealthcheckReport(namespace, name)
 	report.AddCheck("kubernetes_resources", model.HealthStatusPass, model.HealthSeverityCritical, "resources are ready", nil, time.Now())
 	report.Finalize()
@@ -219,6 +233,28 @@ func TestGetLatestHealthcheckReturnsNotFoundBeforeRun(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), `"code":"HEALTHCHECK_REPORT_NOT_FOUND"`) {
 		t.Fatalf("unexpected response: %s", response.Body)
+	}
+}
+
+func TestRunHealthcheckSerializesSameCluster(t *testing.T) {
+	store := &fakeStore{healthDelay: 25 * time.Millisecond}
+	handler := newTestServer(store)
+	var wait sync.WaitGroup
+	wait.Add(2)
+	for range 2 {
+		go func() {
+			defer wait.Done()
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/healthcheck", nil)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusOK {
+				t.Errorf("expected 200, got %d: %s", response.Code, response.Body)
+			}
+		}()
+	}
+	wait.Wait()
+	if got := store.maxHealthchecks.Load(); got != 1 {
+		t.Fatalf("expected one concurrent healthcheck for the same cluster, got %d", got)
 	}
 }
 

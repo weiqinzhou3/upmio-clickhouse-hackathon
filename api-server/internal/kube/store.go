@@ -3,6 +3,7 @@ package kube
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -371,6 +372,7 @@ func (s *Store) RunHealthcheck(ctx context.Context, namespace, name string) (mod
 	}
 
 	report := model.NewHealthcheckReport(namespace, name)
+	sensitiveValues, sensitiveErr := s.collectHealthcheckSensitiveValues(ctx, namespace, name)
 	s.checkProject(ctx, &report, namespace)
 	s.checkUnitSetReady(ctx, &report, namespace, name+"-keeper", cluster.Topology.KeeperReplicas, "keeper_unitset_ready")
 	s.checkUnitSetReady(ctx, &report, namespace, name, cluster.Topology.Shards*cluster.Topology.ReplicasPerShard, "server_unitset_ready")
@@ -390,7 +392,8 @@ func (s *Store) RunHealthcheck(ctx context.Context, namespace, name string) (mod
 	s.checkWriteReadProbe(ctx, &report, namespace, serverPods, cluster.Topology)
 	s.checkReplicaHealth(ctx, &report, namespace, serverPods, cluster.Topology)
 	s.checkMetricsEndpoint(ctx, &report, namespace, serverPods)
-	addSecretLeakageCheck(&report)
+	redactHealthcheckReport(&report, sensitiveValues)
+	addSecretLeakageCheck(&report, sensitiveValues, sensitiveErr)
 	report.Finalize()
 	return report, nil
 }
@@ -523,6 +526,12 @@ func (s *Store) checkPVCsBound(ctx context.Context, report *model.HealthcheckRep
 
 func (s *Store) checkServicesEndpoints(ctx context.Context, report *model.HealthcheckReport, namespace, name string) {
 	started := time.Now()
+	requiredServerPorts := map[string]int32{
+		"tcp":         9000,
+		"http":        8123,
+		"interserver": 9009,
+		"metrics":     9363,
+	}
 	services, err := s.core.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		addFailure(report, "services_endpoints", model.HealthSeverityCritical, "cannot list Services", err, started)
@@ -534,6 +543,7 @@ func (s *Store) checkServicesEndpoints(ctx context.Context, report *model.Health
 		return
 	}
 	endpointReady := map[string]int{}
+	endpointPorts := map[string]map[string]int32{}
 	for i := range endpoints.Items {
 		endpoint := endpoints.Items[i]
 		if !resourceMatches(endpoint.Name, endpoint.Labels, name) {
@@ -542,11 +552,19 @@ func (s *Store) checkServicesEndpoints(ctx context.Context, report *model.Health
 		ready := 0
 		for _, subset := range endpoint.Subsets {
 			ready += len(subset.Addresses)
+			if endpointPorts[endpoint.Name] == nil {
+				endpointPorts[endpoint.Name] = map[string]int32{}
+			}
+			for _, port := range subset.Ports {
+				endpointPorts[endpoint.Name][port.Name] = port.Port
+			}
 		}
 		endpointReady[endpoint.Name] = ready
 	}
 	serviceNames := []string{}
 	missingReadyEndpoints := []string{}
+	missingServicePorts := map[string][]string{}
+	missingEndpointPorts := map[string][]string{}
 	for i := range services.Items {
 		service := services.Items[i]
 		if !resourceMatches(service.Name, service.Labels, name) {
@@ -556,19 +574,39 @@ func (s *Store) checkServicesEndpoints(ctx context.Context, report *model.Health
 		if endpointReady[service.Name] == 0 {
 			missingReadyEndpoints = append(missingReadyEndpoints, service.Name)
 		}
+		if strings.HasPrefix(service.Name, name+"-keeper-") {
+			continue
+		}
+		servicePorts := map[string]int32{}
+		for _, port := range service.Spec.Ports {
+			servicePorts[port.Name] = port.Port
+		}
+		for portName, portNumber := range requiredServerPorts {
+			if servicePorts[portName] != portNumber {
+				missingServicePorts[service.Name] = append(missingServicePorts[service.Name], portName)
+			}
+			if endpointPorts[service.Name][portName] != portNumber {
+				missingEndpointPorts[service.Name] = append(missingEndpointPorts[service.Name], portName)
+			}
+		}
+		sort.Strings(missingServicePorts[service.Name])
+		sort.Strings(missingEndpointPorts[service.Name])
 	}
 	sort.Strings(serviceNames)
 	sort.Strings(missingReadyEndpoints)
 	status := model.HealthStatusPass
 	message := "all managed services have ready endpoints"
-	if len(serviceNames) == 0 || len(missingReadyEndpoints) > 0 {
+	if len(serviceNames) == 0 || len(missingReadyEndpoints) > 0 || len(missingServicePorts) > 0 || len(missingEndpointPorts) > 0 {
 		status = model.HealthStatusFail
-		message = "one or more managed services have no ready endpoints"
+		message = "one or more managed services have missing ports or no ready endpoints"
 	}
 	report.AddCheck("services_endpoints", status, model.HealthSeverityCritical, message, map[string]any{
 		"services":               serviceNames,
 		"endpointReadyAddresses": endpointReady,
 		"missingReadyEndpoints":  missingReadyEndpoints,
+		"requiredServerPorts":    requiredServerPorts,
+		"missingServicePorts":    missingServicePorts,
+		"missingEndpointPorts":   missingEndpointPorts,
 	}, started)
 }
 
@@ -711,9 +749,46 @@ func (s *Store) checkWriteReadProbe(ctx context.Context, report *model.Healthche
 		report.AddCheck("write_read_probe", model.HealthStatusFail, model.HealthSeverityCritical, "no ClickHouse pod is available for write/read probe", nil, started)
 		return
 	}
-	stdout, stderr, err := s.clickHouseMultiquery(ctx, namespace, pod.Name, healthcheckDDLAndWriteSQL())
+	if _, stderr, err := s.clickHouseQuery(ctx, namespace, pod.Name, fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s ON CLUSTER %s", healthcheckDatabase, clickHouseClusterName)); err != nil {
+		report.AddCheck("write_read_probe", model.HealthStatusFail, model.HealthSeverityCritical, "healthcheck database preparation failed", map[string]any{
+			"pod":    pod.Name,
+			"stderr": trimEvidence(stderr),
+			"error":  errString(err),
+		}, started)
+		return
+	}
+	for _, serverPod := range serverPods {
+		if err := s.validateHealthcheckTableDefinitions(ctx, namespace, serverPod.Name, true); err != nil {
+			report.AddCheck("write_read_probe", model.HealthStatusFail, model.HealthSeverityCritical, "existing healthcheck table definition drift detected before write", map[string]any{
+				"pod":   serverPod.Name,
+				"error": errString(err),
+			}, started)
+			return
+		}
+	}
+	stdout, stderr, err := s.clickHouseMultiquery(ctx, namespace, pod.Name, healthcheckCreateTablesSQL())
 	if err != nil {
-		report.AddCheck("write_read_probe", model.HealthStatusFail, model.HealthSeverityCritical, "healthcheck DDL or write probe failed", map[string]any{
+		report.AddCheck("write_read_probe", model.HealthStatusFail, model.HealthSeverityCritical, "healthcheck table creation failed", map[string]any{
+			"pod":    pod.Name,
+			"stdout": trimEvidence(stdout),
+			"stderr": trimEvidence(stderr),
+			"error":  errString(err),
+		}, started)
+		return
+	}
+	for _, serverPod := range serverPods {
+		if err := s.validateHealthcheckTableDefinitions(ctx, namespace, serverPod.Name, false); err != nil {
+			report.AddCheck("write_read_probe", model.HealthStatusFail, model.HealthSeverityCritical, "healthcheck table definition drift detected after create", map[string]any{
+				"pod":   serverPod.Name,
+				"error": errString(err),
+			}, started)
+			return
+		}
+	}
+	probeRows := healthcheckProbeRowCount(topology)
+	stdout, stderr, err = s.clickHouseMultiquery(ctx, namespace, pod.Name, healthcheckWriteSQL(probeRows))
+	if err != nil {
+		report.AddCheck("write_read_probe", model.HealthStatusFail, model.HealthSeverityCritical, "healthcheck write probe failed", map[string]any{
 			"pod":    pod.Name,
 			"stdout": trimEvidence(stdout),
 			"stderr": trimEvidence(stderr),
@@ -731,12 +806,7 @@ func (s *Store) checkWriteReadProbe(ctx context.Context, report *model.Healthche
 			return
 		}
 	}
-	assertions := []string{
-		fmt.Sprintf("SELECT throwIf(count() != 8, 'Distributed row count must be 8') FROM %s.%s", healthcheckDatabase, healthcheckDistributedTable),
-		fmt.Sprintf("SELECT throwIf(count() != %d, 'Distributed table must read every shard') FROM (SELECT _shard_num FROM %s.%s GROUP BY _shard_num)", topology.Shards, healthcheckDatabase, healthcheckDistributedTable),
-		fmt.Sprintf("SELECT throwIf(sum(local_rows != 4) != 0, 'Each replica must contain 4 local rows') FROM (SELECT hostName(), count() AS local_rows FROM clusterAllReplicas('%s', %s.%s) GROUP BY hostName())", clickHouseClusterName, healthcheckDatabase, healthcheckLocalTable),
-	}
-	for _, assertion := range assertions {
+	for _, assertion := range healthcheckWriteAssertions(topology, probeRows) {
 		if _, stderr, err := s.clickHouseQuery(ctx, namespace, pod.Name, assertion); err != nil {
 			report.AddCheck("write_read_probe", model.HealthStatusFail, model.HealthSeverityCritical, "write/read assertion failed", map[string]any{
 				"pod":       pod.Name,
@@ -747,30 +817,12 @@ func (s *Store) checkWriteReadProbe(ctx context.Context, report *model.Healthche
 			return
 		}
 	}
-	createLocal, _, err := s.clickHouseQuery(ctx, namespace, pod.Name, fmt.Sprintf("SHOW CREATE TABLE %s.%s FORMAT TSVRaw", healthcheckDatabase, healthcheckLocalTable))
-	if err != nil || !strings.Contains(createLocal, "ReplicatedMergeTree") || !hasColumnDefinition(createLocal, "shard_key", "UInt64") {
-		report.AddCheck("write_read_probe", model.HealthStatusFail, model.HealthSeverityCritical, "healthcheck local table definition drift detected", map[string]any{
-			"pod":        pod.Name,
-			"definition": trimEvidence(createLocal),
-			"error":      errString(err),
-		}, started)
-		return
-	}
-	createDist, _, err := s.clickHouseQuery(ctx, namespace, pod.Name, fmt.Sprintf("SHOW CREATE TABLE %s.%s FORMAT TSVRaw", healthcheckDatabase, healthcheckDistributedTable))
-	if err != nil || !strings.Contains(createDist, "Distributed") || !strings.Contains(createDist, clickHouseClusterName) {
-		report.AddCheck("write_read_probe", model.HealthStatusFail, model.HealthSeverityCritical, "healthcheck distributed table definition drift detected", map[string]any{
-			"pod":        pod.Name,
-			"definition": trimEvidence(createDist),
-			"error":      errString(err),
-		}, started)
-		return
-	}
 	report.AddCheck("write_read_probe", model.HealthStatusPass, model.HealthSeverityCritical, "Distributed write/read probe succeeded through reserved healthcheck tables", map[string]any{
 		"pod":              pod.Name,
 		"database":         healthcheckDatabase,
 		"localTable":       healthcheckLocalTable,
 		"distributedTable": healthcheckDistributedTable,
-		"insertedRows":     8,
+		"insertedRows":     probeRows,
 	}, started)
 }
 
@@ -858,8 +910,44 @@ func addFailure(report *model.HealthcheckReport, name, severity, message string,
 	}, started)
 }
 
-func addSecretLeakageCheck(report *model.HealthcheckReport) {
+func (s *Store) collectHealthcheckSensitiveValues(ctx context.Context, namespace, name string) ([]string, error) {
+	server, err := s.dynamic.Resource(unitSetGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("read server UnitSet for secret redaction: %w", err)
+	}
+	secretNames := []string{server.GetAnnotations()[adminSecretAnnotation], "aes-secret-key"}
+	values := []string{}
+	for _, secretName := range secretNames {
+		if secretName == "" {
+			return nil, fmt.Errorf("required secret reference is missing")
+		}
+		secret, err := s.core.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("read secret material for response redaction: %w", err)
+		}
+		for _, value := range secret.Data {
+			if len(value) < 4 {
+				continue
+			}
+			values = append(values, string(value), base64.StdEncoding.EncodeToString(value))
+		}
+	}
+	return values, nil
+}
+
+func redactHealthcheckReport(report *model.HealthcheckReport, sensitiveValues []string) {
+	for index := range report.Checks {
+		report.Checks[index].Message = redactString(report.Checks[index].Message, sensitiveValues)
+		report.Checks[index].Evidence = redactMap(report.Checks[index].Evidence, sensitiveValues)
+	}
+}
+
+func addSecretLeakageCheck(report *model.HealthcheckReport, sensitiveValues []string, sensitiveErr error) {
 	started := time.Now()
+	if sensitiveErr != nil {
+		report.AddCheck("no_secret_leakage", model.HealthStatusFail, model.HealthSeverityCritical, "secret material could not be loaded for response leakage validation", nil, started)
+		return
+	}
 	payload, err := json.Marshal(report)
 	if err != nil {
 		report.AddCheck("no_secret_leakage", model.HealthStatusFail, model.HealthSeverityCritical, "healthcheck report could not be marshaled for secret scan", map[string]any{
@@ -875,6 +963,12 @@ func addSecretLeakageCheck(report *model.HealthcheckReport) {
 			matches = append(matches, pattern)
 		}
 	}
+	for _, sensitiveValue := range sensitiveValues {
+		if sensitiveValue != "" && strings.Contains(string(payload), sensitiveValue) {
+			matches = append(matches, "secret-value")
+			break
+		}
+	}
 	status := model.HealthStatusPass
 	message := "healthcheck report does not include secret field names or values collected by the API server"
 	if len(matches) > 0 {
@@ -884,6 +978,55 @@ func addSecretLeakageCheck(report *model.HealthcheckReport) {
 	report.AddCheck("no_secret_leakage", status, model.HealthSeverityCritical, message, map[string]any{
 		"forbiddenMatches": matches,
 	}, started)
+}
+
+func redactMap(input map[string]any, sensitiveValues []string) map[string]any {
+	if input == nil {
+		return nil
+	}
+	output := make(map[string]any, len(input))
+	for key, value := range input {
+		output[key] = redactValue(value, sensitiveValues)
+	}
+	return output
+}
+
+func redactValue(value any, sensitiveValues []string) any {
+	switch typed := value.(type) {
+	case string:
+		return redactString(typed, sensitiveValues)
+	case []string:
+		output := make([]string, len(typed))
+		for index := range typed {
+			output[index] = redactString(typed[index], sensitiveValues)
+		}
+		return output
+	case []any:
+		output := make([]any, len(typed))
+		for index := range typed {
+			output[index] = redactValue(typed[index], sensitiveValues)
+		}
+		return output
+	case map[string]string:
+		output := make(map[string]string, len(typed))
+		for key, item := range typed {
+			output[key] = redactString(item, sensitiveValues)
+		}
+		return output
+	case map[string]any:
+		return redactMap(typed, sensitiveValues)
+	default:
+		return value
+	}
+}
+
+func redactString(value string, sensitiveValues []string) string {
+	for _, sensitiveValue := range sensitiveValues {
+		if sensitiveValue != "" {
+			value = strings.ReplaceAll(value, sensitiveValue, "[REDACTED]")
+		}
+	}
+	return value
 }
 
 func (s *Store) clickHouseQuery(ctx context.Context, namespace, podName, query string) (string, string, error) {
@@ -934,9 +1077,8 @@ func (s *Store) execPod(ctx context.Context, namespace, podName, container strin
 	return stdout.String(), stderr.String(), nil
 }
 
-func healthcheckDDLAndWriteSQL() string {
+func healthcheckCreateTablesSQL() string {
 	return fmt.Sprintf(`
-CREATE DATABASE IF NOT EXISTS %[1]s ON CLUSTER %[2]s;
 CREATE TABLE IF NOT EXISTS %[1]s.%[3]s ON CLUSTER %[2]s
 (
     id UInt64,
@@ -948,18 +1090,83 @@ ORDER BY id;
 CREATE TABLE IF NOT EXISTS %[1]s.%[4]s ON CLUSTER %[2]s
 AS %[1]s.%[3]s
 ENGINE = Distributed(%[2]s, %[1]s, %[3]s, shard_key);
+`, healthcheckDatabase, clickHouseClusterName, healthcheckLocalTable, healthcheckDistributedTable)
+}
+
+func healthcheckWriteSQL(rows int) string {
+	values := make([]string, 0, rows)
+	for index := 1; index <= rows; index++ {
+		values = append(values, fmt.Sprintf("(%d, %d, 'healthcheck-%d')", index, index, index))
+	}
+	return fmt.Sprintf(`
 SET insert_distributed_sync = 1;
 TRUNCATE TABLE %[1]s.%[3]s ON CLUSTER %[2]s;
 INSERT INTO %[1]s.%[4]s VALUES
-    (1, 1, 'healthcheck-a'),
-    (2, 2, 'healthcheck-b'),
-    (3, 3, 'healthcheck-c'),
-    (4, 4, 'healthcheck-d'),
-    (5, 5, 'healthcheck-e'),
-    (6, 6, 'healthcheck-f'),
-    (7, 7, 'healthcheck-g'),
-    (8, 8, 'healthcheck-h');
-`, healthcheckDatabase, clickHouseClusterName, healthcheckLocalTable, healthcheckDistributedTable)
+    %[5]s;
+`, healthcheckDatabase, clickHouseClusterName, healthcheckLocalTable, healthcheckDistributedTable, strings.Join(values, ",\n    "))
+}
+
+func healthcheckProbeRowCount(topology model.Topology) int {
+	rows := topology.Shards * 4
+	if rows < 8 {
+		return 8
+	}
+	return rows
+}
+
+func healthcheckWriteAssertions(topology model.Topology, probeRows int) []string {
+	return []string{
+		fmt.Sprintf("SELECT throwIf(count() != %d, 'Distributed row count does not match inserted probe rows') FROM %s.%s", probeRows, healthcheckDatabase, healthcheckDistributedTable),
+		fmt.Sprintf("SELECT throwIf(count() != %d, 'Distributed table must read every shard') FROM (SELECT _shard_num FROM %s.%s GROUP BY _shard_num)", topology.Shards, healthcheckDatabase, healthcheckDistributedTable),
+		fmt.Sprintf("SELECT throwIf(count() != %d OR sum(replicas != %d OR row_count_variants != 1 OR min_rows = 0) != 0, 'Replica row distribution is inconsistent') FROM (SELECT shard, count() AS replicas, uniqExact(local_rows) AS row_count_variants, min(local_rows) AS min_rows FROM (SELECT getMacro('shard') AS shard, getMacro('replica') AS replica, count() AS local_rows FROM clusterAllReplicas('%s', %s.%s) GROUP BY shard, replica) GROUP BY shard)", topology.Shards, topology.ReplicasPerShard, clickHouseClusterName, healthcheckDatabase, healthcheckLocalTable),
+	}
+}
+
+func (s *Store) validateHealthcheckTableDefinitions(ctx context.Context, namespace, podName string, allowMissing bool) error {
+	tables := []struct {
+		name     string
+		validate func(string) bool
+	}{
+		{name: healthcheckLocalTable, validate: validHealthcheckLocalDefinition},
+		{name: healthcheckDistributedTable, validate: validHealthcheckDistributedDefinition},
+	}
+	for _, table := range tables {
+		exists, stderr, err := s.clickHouseQuery(ctx, namespace, podName, fmt.Sprintf("EXISTS TABLE %s.%s FORMAT TSV", healthcheckDatabase, table.name))
+		if err != nil {
+			return fmt.Errorf("check healthcheck table %s existence: %s %w", table.name, trimEvidence(stderr), err)
+		}
+		if strings.TrimSpace(exists) == "0" && allowMissing {
+			continue
+		}
+		if strings.TrimSpace(exists) != "1" {
+			return fmt.Errorf("healthcheck table %s does not exist after create", table.name)
+		}
+		definition, stderr, err := s.clickHouseQuery(ctx, namespace, podName, fmt.Sprintf("SHOW CREATE TABLE %s.%s FORMAT TSVRaw", healthcheckDatabase, table.name))
+		if err != nil {
+			return fmt.Errorf("read healthcheck table %s definition: %s %w", table.name, trimEvidence(stderr), err)
+		}
+		if !table.validate(definition) {
+			return fmt.Errorf("healthcheck table %s definition differs from the API-server-owned schema", table.name)
+		}
+	}
+	return nil
+}
+
+func validHealthcheckLocalDefinition(definition string) bool {
+	return hasColumnDefinition(definition, "id", "UInt64") &&
+		hasColumnDefinition(definition, "shard_key", "UInt64") &&
+		hasColumnDefinition(definition, "message", "String") &&
+		strings.Contains(definition, "ReplicatedMergeTree") &&
+		strings.Contains(definition, "/upm_healthcheck/local_events") &&
+		strings.Contains(definition, "ORDER BY id")
+}
+
+func validHealthcheckDistributedDefinition(definition string) bool {
+	return strings.Contains(definition, "Distributed") &&
+		strings.Contains(definition, clickHouseClusterName) &&
+		strings.Contains(definition, healthcheckDatabase) &&
+		strings.Contains(definition, healthcheckLocalTable) &&
+		strings.Contains(definition, "shard_key")
 }
 
 func podIsReady(pod *corev1.Pod) bool {

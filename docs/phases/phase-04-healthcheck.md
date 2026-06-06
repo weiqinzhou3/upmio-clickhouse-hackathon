@@ -1,6 +1,6 @@
 # Phase 04: Healthcheck and Day1 Acceptance Report
 
-- Version: 0.5
+- Version: 0.6
 - Date: 2026-06-06
 - Status: Confirmed
 - Priority: P0
@@ -88,6 +88,7 @@ Minimum report:
 ```json
 {
   "cluster": "clickhouse-phase03",
+  "name": "clickhouse-phase03",
   "namespace": "upm-clickhouse-phase03-runtime",
   "status": "PASS",
   "startedAt": "...",
@@ -194,12 +195,16 @@ Validation DDL policy:
 - Validate existing API-server-owned table definitions before using them.
 - If an API-server-owned validation object exists with a different definition,
   the healthcheck must fail with a drift message; do not silently overwrite.
+- Drift validation must run before `TRUNCATE` or `INSERT`; a drift failure must
+  not mutate the existing validation table.
 - Do not mutate user business databases or tables.
 - Do not drop business objects.
 - `ON CLUSTER` is required for the Distributed validation probe. If it is
   unavailable, the validation probe must not report `PASS`.
 - Reserved validation cleanup may truncate only API-server-owned validation
   tables in `upm_healthcheck`.
+- Concurrent healthchecks for the same `namespace/name` must be serialized so
+  they cannot truncate or write the same validation tables simultaneously.
 
 ## 8. Implementation Boundaries
 
@@ -259,6 +264,12 @@ clickhouse/phase-04/scripts/validate-healthcheck-runtime.sh
 15. Failure cases return structured error responses.
 16. Runtime validation calls the real API over NodePort and verifies the
     resulting report against live Kubernetes and ClickHouse state.
+17. Service/Endpoint validation confirms ClickHouse TCP, HTTP, interserver,
+    and metrics ports.
+18. Validation-table drift is checked before any truncate or insert.
+19. Same-cluster healthcheck requests are serialized.
+20. Report output redacts known admin-password and AES-key values, not only
+    their field names.
 
 ## 10. Verification Commands
 
@@ -340,3 +351,4 @@ kubectl exec -n upm-clickhouse-phase03-runtime clickhouse-phase03-0 \
 | 0.3 | 2026-05-27 | Added metadata and red-team fix structure |
 | 0.4 | 2026-05-27 | Restored concrete check table, report model, DDL/idempotency decisions, and objective verification commands |
 | 0.5 | 2026-06-06 | Aligned Phase 04 with `api-server`, current 2x2 runtime, in-memory latest report, NodePort validation, metrics WARN policy, and validation-object drift rules |
+| 0.6 | 2026-06-06 | Closed review gaps: pre-write drift validation, dynamic topology assertions, required service ports, same-cluster serialization, report duration, and actual Secret-value redaction |

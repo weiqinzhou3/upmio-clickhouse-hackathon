@@ -59,6 +59,7 @@ do
 done
 
 jq -e '.checks[] | select(.name=="metrics_endpoint" and (.status=="PASS" or .status=="WARN"))' "$OUT" >/dev/null
+jq -e '.cluster==.name and (.durationMs >= 0)' "$OUT" >/dev/null
 
 if grep -Eiq 'CLICKHOUSE_ADMIN_PASSWORD|AES_SECRET_KEY|secretKeyRef' "$OUT"; then
   echo "ERROR: healthcheck report contains forbidden secret-like tokens" >&2
@@ -75,20 +76,23 @@ jq -e --arg status "$status" '.status==$status' "$LATEST_OUT" >/dev/null
 
 echo
 echo "== Cross-check ClickHouse healthcheck data =="
+probe_rows="$(jq -r '.checks[] | select(.name=="write_read_probe") | .evidence.insertedRows' "$OUT")"
+expected_shards="$(jq -r '.checks[] | select(.name=="system_clusters_topology") | .evidence.expectedShards' "$OUT")"
+expected_replicas="$(jq -r '.checks[] | select(.name=="system_clusters_topology") | .evidence.expectedReplicas' "$OUT")"
 row_count="$(
   kubectl exec -n "$NS" "$POD" -c clickhouse -- \
     service-ctl.sh login --query 'SELECT count() FROM upm_healthcheck.dist_events FORMAT TSV' | tr -d '\r'
 )"
-if [[ "$row_count" != "8" ]]; then
-  echo "ERROR: expected upm_healthcheck.dist_events row count 8, got ${row_count}" >&2
+if [[ "$row_count" != "$probe_rows" ]]; then
+  echo "ERROR: expected upm_healthcheck.dist_events row count ${probe_rows}, got ${row_count}" >&2
   exit 1
 fi
 
 kubectl exec -n "$NS" "$POD" -c clickhouse -- service-ctl.sh login --query \
-  "SELECT throwIf(count() != 2, 'Distributed table must read both shards') FROM (SELECT _shard_num FROM upm_healthcheck.dist_events GROUP BY _shard_num)" >/dev/null
+  "SELECT throwIf(count() != ${expected_shards}, 'Distributed table must read every shard') FROM (SELECT _shard_num FROM upm_healthcheck.dist_events GROUP BY _shard_num)" >/dev/null
 
 kubectl exec -n "$NS" "$POD" -c clickhouse -- service-ctl.sh login --query \
-  "SELECT throwIf(sum(total_replicas != 2 OR active_replicas != 2 OR is_readonly != 0 OR queue_size != 0) != 0, 'Replica health check failed') FROM clusterAllReplicas('upm_cluster', system.replicas) WHERE database = 'upm_healthcheck' AND table = 'local_events'" >/dev/null
+  "SELECT throwIf(sum(total_replicas != ${expected_replicas} OR active_replicas != ${expected_replicas} OR is_readonly != 0 OR queue_size != 0) != 0, 'Replica health check failed') FROM clusterAllReplicas('upm_cluster', system.replicas) WHERE database = 'upm_healthcheck' AND table = 'local_events'" >/dev/null
 
 echo
 echo "PASS phase04_healthcheck_runtime_validation"

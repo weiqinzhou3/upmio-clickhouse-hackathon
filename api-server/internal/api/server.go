@@ -27,14 +27,18 @@ type Server struct {
 
 	latestMu sync.RWMutex
 	latest   map[string]model.HealthcheckReport
+
+	healthcheckLocksMu sync.Mutex
+	healthcheckLocks   map[string]*sync.Mutex
 }
 
 func NewServer(store platform.Store, logger *slog.Logger, timeout time.Duration) http.Handler {
 	server := &Server{
-		store:   store,
-		logger:  logger,
-		timeout: timeout,
-		latest:  map[string]model.HealthcheckReport{},
+		store:            store,
+		logger:           logger,
+		timeout:          timeout,
+		latest:           map[string]model.HealthcheckReport{},
+		healthcheckLocks: map[string]*sync.Mutex{},
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/healthz", server.healthz)
@@ -172,6 +176,10 @@ func (s *Server) runHealthcheck(w http.ResponseWriter, r *http.Request) {
 		s.writeValidationError(w, r, err)
 		return
 	}
+	lock := s.healthcheckLock(healthcheckKey(namespace, name))
+	lock.Lock()
+	defer lock.Unlock()
+
 	report, err := s.store.RunHealthcheck(r.Context(), namespace, name)
 	if err != nil {
 		s.writeError(w, r, err)
@@ -263,4 +271,15 @@ func newRequestID() string {
 
 func healthcheckKey(namespace, name string) string {
 	return namespace + "/" + name
+}
+
+func (s *Server) healthcheckLock(key string) *sync.Mutex {
+	s.healthcheckLocksMu.Lock()
+	defer s.healthcheckLocksMu.Unlock()
+	lock, exists := s.healthcheckLocks[key]
+	if !exists {
+		lock = &sync.Mutex{}
+		s.healthcheckLocks[key] = lock
+	}
+	return lock
 }

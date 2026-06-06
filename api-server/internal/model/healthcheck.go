@@ -15,9 +15,11 @@ const (
 type HealthcheckReport struct {
 	Namespace   string             `json:"namespace"`
 	Name        string             `json:"name"`
+	Cluster     string             `json:"cluster"`
 	Status      string             `json:"status"`
 	StartedAt   time.Time          `json:"startedAt"`
 	CompletedAt time.Time          `json:"completedAt"`
+	DurationMS  int64              `json:"durationMs"`
 	Summary     HealthcheckSummary `json:"summary"`
 	Checks      []HealthcheckCheck `json:"checks"`
 	RequestID   string             `json:"requestId,omitempty"`
@@ -45,6 +47,7 @@ func NewHealthcheckReport(namespace, name string) HealthcheckReport {
 	return HealthcheckReport{
 		Namespace: namespace,
 		Name:      name,
+		Cluster:   name,
 		Status:    HealthStatusSkipped,
 		StartedAt: startedAt,
 		Checks:    []HealthcheckCheck{},
@@ -99,4 +102,5 @@ func (r *HealthcheckReport) Finalize() {
 	r.Summary = summary
 	r.Status = overall
 	r.CompletedAt = time.Now().UTC()
+	r.DurationMS = r.CompletedAt.Sub(r.StartedAt).Milliseconds()
 }
