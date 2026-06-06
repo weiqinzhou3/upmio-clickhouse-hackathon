@@ -606,5 +606,45 @@ Codex will summarize submitted evidence and append it to the log below.
 - Runtime evidence:
   - Grafana is reachable at `http://192.168.35.201:30300`.
   - Dashboard `upm-clickhouse-overview` is imported.
-  - All 11 required panel queries returned 4 samples each.
+  - Initial temporary dashboard validation proved the Grafana datasource path
+    with 11 required panel queries.
+  - The final validation ended with `PASS phase05_monitoring_runtime_validation`.
+
+### Entry 014 - Phase 05 Existing Grafana Dashboard Adaptation
+
+- Date: 2026-06-07
+- AI tool: Codex
+- Topic: Replace the temporary Grafana dashboard with an adapted existing
+  dashboard and record future one-click environment preparation needs
+- Human challenge:
+  - The generated dashboard was not good enough.
+  - Use the existing user-provided `23285_rev1.json` dashboard and tune it.
+  - Save and register the dashboard.
+  - After all MVP work, prepare documentation and one-click scripts for
+    Kubernetes, UPMIO, kube-prometheus-stack, API-driven ClickHouse
+    deployment, API operations, and inspection.
+- Codex repair:
+  - Adapted the source dashboard
+    `ClickHouse and Keeper Comprehensive Dashboard` into
+    `clickhouse/grafana/upm-clickhouse-23285-dashboard.json`.
+  - Rewrote dashboard datasource and PromQL label selectors to the Phase 05
+    `namespace`/`pod` PodMonitor label model.
+  - Dropped node-exporter-only panels because node-exporter is not enabled in
+    the Phase 05 external monitoring environment.
+  - Dropped the standalone Keeper service overview because standalone Keeper
+    metrics are not scraped in Phase 05.
+  - Kept ClickHouse client-to-Keeper panels because those metrics are native
+    ClickHouse profile events exposed by the server pods.
+  - Registered the dashboard through the Grafana sidecar ConfigMap and fixed
+    the large-dashboard ConfigMap workflow by using delete/create instead of
+    `kubectl apply`, avoiding the Kubernetes last-applied annotation limit.
+  - Reset Grafana admin password to match the external environment values so
+    sidecar reload and validation use consistent credentials.
+  - Updated validation to execute every visible dashboard target query through
+    the Grafana datasource proxy.
+- Runtime evidence:
+  - Dashboard `upm-clickhouse-overview` is registered with title
+    `UPM ClickHouse Operational Dashboard`.
+  - The imported dashboard has 185 panels.
+  - 170 data panels and 207 visible target queries returned samples.
   - The final validation ended with `PASS phase05_monitoring_runtime_validation`.

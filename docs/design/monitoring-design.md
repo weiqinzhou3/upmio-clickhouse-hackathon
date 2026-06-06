@@ -1,7 +1,7 @@
 # Monitoring Design
 
-- Version: 0.4
-- Date: 2026-06-06
+- Version: 0.5
+- Date: 2026-06-07
 - Status: Sealed
 - Owner: zqw
 - Related:
@@ -29,7 +29,13 @@ For the hackathon environment, `kube-prometheus-stack` installation assets are
 kept outside this repository under `../kube-prometheus-stack/`. They are
 environment readiness assets, not UPMIO product deliverables. Those assets
 must install Prometheus and Grafana, provision a Prometheus datasource, and
-import the MVP ClickHouse dashboard automatically.
+import the adapted ClickHouse dashboard automatically.
+
+The MVP dashboard asset is stored at
+`clickhouse/grafana/upm-clickhouse-23285-dashboard.json`. It is adapted from
+the user-provided Grafana dashboard `23285_rev1.json` to match the Phase 05
+PodMonitor label model and to exclude panels whose source metrics are not
+available in the current external environment.
 
 ## 3. MVP Metric Exposure
 
@@ -118,7 +124,7 @@ infrastructure labels are filtered from the API response.
 - All expected ClickHouse Server Pods are compared with Prometheus target
   results so a silently missing target cannot produce a false `READY`.
 - Grafana is installed as part of the external monitoring environment.
-- Grafana datasource and MVP ClickHouse dashboard are provisioned
+- Grafana datasource and adapted ClickHouse dashboard are provisioned
   automatically.
-- Every required dashboard panel query returns non-empty data through the
-  Grafana datasource proxy.
+- Every visible dashboard target query included in the imported dashboard
+  returns non-empty data through the Grafana datasource proxy.

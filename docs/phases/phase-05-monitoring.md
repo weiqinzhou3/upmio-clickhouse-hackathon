@@ -1,7 +1,7 @@
 # Phase 05: Monitoring Integration
 
-- Version: 0.7
-- Date: 2026-06-06
+- Version: 0.8
+- Date: 2026-06-07
 - Status: Confirmed
 - Priority: P0
 - Owner: zqw
@@ -45,7 +45,6 @@ In scope:
 
 Out of scope:
 
-- Installing Prometheus/Grafana as part of UPMIO package.
 - Installing Prometheus/Grafana as part of UPMIO package.
 - Managing Grafana as an `upm-api-server` product feature.
 - PrometheusRule/alert rule implementation in MVP.
@@ -100,7 +99,7 @@ delivery directory. The external environment assets must automate:
 - image synchronization to Kubernetes nodes when registry access is unreliable;
 - kube-prometheus-stack installation or upgrade;
 - Prometheus datasource provisioning in Grafana;
-- ClickHouse dashboard ConfigMap creation;
+- ClickHouse dashboard ConfigMap creation from the repository dashboard asset;
 - Grafana service exposure for demo access.
 
 ## 5. Required Metrics Categories
@@ -173,12 +172,19 @@ MVP decision:
 
 - `upm-api-server` does not generate or manage Grafana dashboards.
 - Grafana and its dashboards are external observability environment assets.
-- The external `../kube-prometheus-stack/` scripts must provision a basic
+- The external `../kube-prometheus-stack/` scripts must provision the adapted
   ClickHouse dashboard automatically.
 - The dashboard must be variable-driven and discover the deployed ClickHouse
   cluster from Prometheus labels rather than hardcoding individual Pod IPs.
+- The dashboard asset is stored at
+  `clickhouse/grafana/upm-clickhouse-23285-dashboard.json`.
+- The dashboard is adapted from the user-provided Grafana dashboard
+  `23285_rev1.json` and keeps only panels whose visible target queries return
+  real samples in the Phase 05 runtime.
+- Node-exporter-only panels and standalone Keeper service panels are excluded
+  unless those metrics are added to the external environment.
 
-Minimum MVP panels:
+Minimum MVP coverage:
 
 | Panel | Required data source |
 |---|---|
@@ -191,6 +197,11 @@ Minimum MVP panels:
 | Inserted rows | ClickHouse native profile events |
 | Inserted bytes | ClickHouse native profile events |
 | ClickHouse memory tracking | ClickHouse native metrics |
+
+The adapted dashboard may include additional validated ClickHouse panels for
+queries, inserts, selects, Kafka counters, merges, mutations, background pools,
+backup/restore thread counters, IO, replicas, cache, parts, distributed
+inserts, and ClickHouse client-to-Keeper activity.
 
 ## 8. Files Likely Changed
 
@@ -225,10 +236,10 @@ docs/api/upm-api-server-v1.md
 10. Grafana dashboard ownership decision is recorded.
 11. Grafana is installed by the external environment scripts, exposed for demo
     access, and has a provisioned Prometheus datasource.
-12. ClickHouse dashboard is automatically imported and contains the required
-    MVP panels.
-13. Every required dashboard panel query returns non-empty data through the
-    Grafana datasource proxy.
+12. ClickHouse dashboard is automatically imported from the repository
+    dashboard asset and contains the required MVP coverage.
+13. Every visible dashboard target query included in the imported dashboard
+    returns non-empty data through the Grafana datasource proxy.
 14. Prometheus unavailability and partial target failures follow the defined
     structured API error/status behavior.
 15. A real-environment validation script proves the full chain and saves its
@@ -285,3 +296,4 @@ clickhouse/phase-05/scripts/validate-monitoring-runtime.sh
 | 0.5 | 2026-06-02 | Added explicit `/metrics -> PodMonitor -> Prometheus -> upm-api-server` closure and clarified that `metrics-server` is supplementary only |
 | 0.6 | 2026-06-06 | Required real Prometheus scrape/API closure, defined external environment asset location, API status semantics, query safety boundary, and real-environment validation |
 | 0.7 | 2026-06-06 | Added external Grafana datasource/dashboard automation and per-panel data validation to Phase 05 acceptance |
+| 0.8 | 2026-06-07 | Replaced the temporary dashboard with an adapted Grafana 23285 dashboard asset and required visible target query validation |

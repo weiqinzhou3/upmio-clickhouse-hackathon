@@ -13,6 +13,7 @@ Current lab target:
 - API endpoint: `http://192.168.35.201:30083`
 - Grafana endpoint: `http://192.168.35.201:30300`
 - Grafana dashboard UID: `upm-clickhouse-overview`
+- Grafana dashboard title: `UPM ClickHouse Operational Dashboard`
 - External monitoring environment assets: `../kube-prometheus-stack/`
 
 The external kube-prometheus-stack assets are intentionally not stored in this
@@ -48,11 +49,21 @@ The script saves:
 - `clickhouse/phase-05/metrics-summary.json`
 - `clickhouse/phase-05/grafana-dashboard.json`
 - `clickhouse/phase-05/grafana-panel-query-results.json`
+- `clickhouse/phase-05/grafana-panel-source-validation.json`
 
 Grafana panel validation is based on the actual imported dashboard JSON. The
-script reads each panel expression, substitutes the `namespace` and `cluster`
-dashboard variables, and executes the query through the Grafana datasource
-proxy.
+script reads every visible target expression, substitutes the `namespace` and
+`cluster` dashboard variables, and executes the query through the Grafana
+datasource proxy.
+
+The installed dashboard is adapted from Grafana dashboard `23285_rev1` and
+saved as:
+
+```text
+clickhouse/grafana/upm-clickhouse-23285-dashboard.json
+```
+
+Current runtime evidence proves 170 data panels and 207 visible target queries.
 
 ## Manual API Call
 
@@ -83,5 +94,5 @@ curl -fsS -u admin:admin \
 Expected state:
 
 - Grafana API returns `database=ok`.
-- The dashboard title is `UPM ClickHouse Monitoring Overview`.
-- The dashboard has at least 11 panels.
+- The dashboard title is `UPM ClickHouse Operational Dashboard`.
+- The dashboard has 185 panels.

@@ -1,6 +1,6 @@
 # Phase 05 Runtime Validation
 
-- Date: 2026-06-06
+- Date: 2026-06-07
 - Namespace: `upm-clickhouse-phase03-runtime`
 - Cluster: `clickhouse-phase03`
 - API endpoint: `http://192.168.35.201:30083`
@@ -9,6 +9,7 @@
 - External environment assets: `../kube-prometheus-stack/`
 - Grafana endpoint: `http://192.168.35.201:30300`
 - Grafana dashboard UID: `upm-clickhouse-overview`
+- Grafana dashboard title: `UPM ClickHouse Operational Dashboard`
 - Grafana datasource UID: `prometheus`
 
 ## Environment Boundary
@@ -82,6 +83,8 @@ Saved evidence:
 - `clickhouse/phase-05/metrics-summary.json`
 - `clickhouse/phase-05/grafana-dashboard.json`
 - `clickhouse/phase-05/grafana-panel-query-results.json`
+- `clickhouse/phase-05/grafana-panel-source-validation.json`
+- `clickhouse/grafana/upm-clickhouse-23285-dashboard.json`
 
 The proven chain is:
 
@@ -110,8 +113,11 @@ The validation script verified:
 
 - datasource `prometheus` points to
   `http://kube-prometheus-stack-prometheus.monitoring.svc:9090`;
-- dashboard `upm-clickhouse-overview` exists with at least 11 panels;
-- all required panel queries returned 4 samples;
+- dashboard `upm-clickhouse-overview` exists with title
+  `UPM ClickHouse Operational Dashboard`;
+- the dashboard is adapted from Grafana dashboard `23285_rev1`;
+- the imported dashboard contains 185 panels;
+- 170 data panels and 207 visible target queries returned samples;
 - panel queries are extracted from the imported Grafana dashboard JSON and
   executed through the Grafana datasource proxy after substituting the
   `namespace` and `cluster` dashboard variables.
@@ -119,17 +125,8 @@ The validation script verified:
 Panel query result:
 
 ```text
-PASS grafana_panel=Target Up samples=4
-PASS grafana_panel=CPU Cores samples=4
-PASS grafana_panel=Memory Working Set samples=4
-PASS grafana_panel=Disk Used samples=4
-PASS grafana_panel=Disk Available samples=4
-PASS grafana_panel=Disk Total samples=4
-PASS grafana_panel=Queries samples=4
-PASS grafana_panel=Insert Queries samples=4
-PASS grafana_panel=Inserted Rows samples=4
-PASS grafana_panel=Inserted Bytes samples=4
-PASS grafana_panel=ClickHouse Memory Tracking samples=4
+PASS grafana_data_panels=170
+PASS grafana_target_queries=207
 PASS grafana_dashboard=upm-clickhouse-overview
 ```
 

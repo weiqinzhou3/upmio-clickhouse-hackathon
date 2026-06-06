@@ -13,6 +13,9 @@ GRAFANA_PORT="${GRAFANA_PORT:-13000}"
 GRAFANA_USER="${GRAFANA_USER:-admin}"
 GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-admin}"
 GRAFANA_DASHBOARD_UID="${GRAFANA_DASHBOARD_UID:-upm-clickhouse-overview}"
+GRAFANA_DASHBOARD_TITLE="${GRAFANA_DASHBOARD_TITLE:-UPM ClickHouse Operational Dashboard}"
+GRAFANA_MIN_DATA_PANELS="${GRAFANA_MIN_DATA_PANELS:-100}"
+GRAFANA_MIN_TARGETS="${GRAFANA_MIN_TARGETS:-150}"
 TARGET_OUT="${TARGET_OUT:-clickhouse/phase-05/prometheus-targets.json}"
 SUMMARY_OUT="${SUMMARY_OUT:-clickhouse/phase-05/metrics-summary.json}"
 GRAFANA_DASHBOARD_OUT="${GRAFANA_DASHBOARD_OUT:-clickhouse/phase-05/grafana-dashboard.json}"
@@ -128,12 +131,17 @@ curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
 curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
   "http://127.0.0.1:${GRAFANA_PORT}/api/dashboards/uid/${GRAFANA_DASHBOARD_UID}" \
   | jq . >"$GRAFANA_DASHBOARD_OUT"
-jq -e '.dashboard.title=="UPM ClickHouse Monitoring Overview" and (.dashboard.panels | length)>=11' "$GRAFANA_DASHBOARD_OUT" >/dev/null
+jq -e --arg title "$GRAFANA_DASHBOARD_TITLE" \
+  '.dashboard.title==$title and (.dashboard.panels | length)>=100' \
+  "$GRAFANA_DASHBOARD_OUT" >/dev/null
 
-dashboard_panel_count="$(jq '[.dashboard.panels[] | select(.targets[0].expr? != null)] | length' "$GRAFANA_DASHBOARD_OUT")"
-if [[ "$dashboard_panel_count" != "11" ]]; then
+dashboard_panel_count="$(
+  jq '[.dashboard.panels[] | select([.targets[]? | select(.expr? != null and ((.hide // false) | not))] | length > 0)] | length' \
+    "$GRAFANA_DASHBOARD_OUT"
+)"
+if (( dashboard_panel_count < GRAFANA_MIN_DATA_PANELS )); then
   jq '.dashboard.panels[] | {title, targets}' "$GRAFANA_DASHBOARD_OUT"
-  echo "ERROR: expected 11 Grafana panel queries, got ${dashboard_panel_count}" >&2
+  echo "ERROR: expected at least ${GRAFANA_MIN_DATA_PANELS} Grafana data panels, got ${dashboard_panel_count}" >&2
   exit 1
 fi
 
@@ -142,7 +150,8 @@ printf '[' >"$panel_tmp"
 first_panel=1
 run_grafana_panel_query() {
   local panel="$1"
-  local query="$2"
+  local ref_id="$2"
+  local query="$3"
   local response count
   response="$(
     curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" --get \
@@ -159,23 +168,27 @@ run_grafana_panel_query() {
     printf ',\n' >>"$panel_tmp"
   fi
   first_panel=0
-  jq -nc --arg panel "$panel" --arg query "$query" --argjson resultCount "$count" \
-    '{panel:$panel, query:$query, resultCount:$resultCount}' >>"$panel_tmp"
-  echo "PASS grafana_panel=${panel} samples=${count}"
+  jq -nc --arg panel "$panel" --arg refId "$ref_id" --arg query "$query" --argjson resultCount "$count" \
+    '{panel:$panel, refId:$refId, query:$query, resultCount:$resultCount}' >>"$panel_tmp"
+  echo "PASS grafana_target=${panel}/${ref_id} samples=${count}"
 }
 
-while IFS=$'\t' read -r panel query; do
-  run_grafana_panel_query "$panel" "$query"
+while IFS=$'\t' read -r panel ref_id query; do
+  run_grafana_panel_query "$panel" "$ref_id" "$query"
 done < <(
   jq -r --arg ns "$NS" --arg cluster "$NAME" '
     .dashboard.panels[]
-    | select(.targets[0].expr? != null)
+    | .title as $title
+    | .targets[]?
+    | select(.expr? != null and ((.hide // false) | not))
     | [
-        .title,
+        $title,
+        (.refId // ""),
         (
-          .targets[0].expr
+          .expr
           | gsub("\\$namespace"; $ns)
           | gsub("\\$cluster"; $cluster)
+          | gsub("\n"; " ")
         )
       ]
     | @tsv
@@ -185,5 +198,13 @@ printf ']\n' >>"$panel_tmp"
 jq . "$panel_tmp" >"$GRAFANA_PANEL_OUT"
 rm -f "$panel_tmp"
 
+validated_target_count="$(jq 'length' "$GRAFANA_PANEL_OUT")"
+if (( validated_target_count < GRAFANA_MIN_TARGETS )); then
+  echo "ERROR: expected at least ${GRAFANA_MIN_TARGETS} Grafana target queries, got ${validated_target_count}" >&2
+  exit 1
+fi
+
+echo "PASS grafana_data_panels=${dashboard_panel_count}"
+echo "PASS grafana_target_queries=${validated_target_count}"
 echo "PASS grafana_dashboard=${GRAFANA_DASHBOARD_UID}"
 echo "PASS phase05_monitoring_runtime_validation"

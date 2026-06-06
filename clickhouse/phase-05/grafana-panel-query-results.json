@@ -1,57 +1,1244 @@
 [
   {
-    "panel": "Target Up",
-    "query": "up{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\",endpoint=\"metrics\"}",
+    "panel": "Nodes Information",
+    "refId": "A",
+    "query": "ClickHouseMetrics_VersionInteger{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
     "resultCount": 4
   },
   {
-    "panel": "CPU Cores",
-    "query": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\",container=\"clickhouse\"}[2m]))",
+    "panel": "Nodes Information",
+    "refId": "B",
+    "query": "ClickHouseMetrics_Revision{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
     "resultCount": 4
   },
   {
-    "panel": "Memory Working Set",
-    "query": "container_memory_working_set_bytes{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\",container=\"clickhouse\"}",
+    "panel": "Nodes Information",
+    "refId": "C",
+    "query": "ClickHouseAsyncMetrics_NumberOfTables{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
     "resultCount": 4
   },
   {
-    "panel": "Disk Used",
-    "query": "ClickHouseAsyncMetrics_DiskUsed_default{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "panel": "Nodes Information",
+    "refId": "D",
+    "query": "ClickHouseAsyncMetrics_Uptime{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
     "resultCount": 4
   },
   {
-    "panel": "Disk Available",
-    "query": "ClickHouseAsyncMetrics_DiskAvailable_default{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "panel": "Nodes Information",
+    "refId": "E",
+    "query": "ClickHouseAsyncMetrics_NumberOfDatabases{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
     "resultCount": 4
   },
   {
-    "panel": "Disk Total",
-    "query": "ClickHouseAsyncMetrics_DiskTotal_default{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "panel": "Nodes Information",
+    "refId": "F",
+    "query": "ClickHouseMetrics_ReadonlyReplica{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
     "resultCount": 4
   },
   {
-    "panel": "Queries",
-    "query": "ClickHouseProfileEvents_Query{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "panel": "Nodes Information",
+    "refId": "G",
+    "query": "ClickHouseMetrics_KafkaConsumers{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
     "resultCount": 4
   },
   {
-    "panel": "Insert Queries",
-    "query": "ClickHouseProfileEvents_InsertQuery{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "panel": "Nodes Information",
+    "refId": "H",
+    "query": "(ClickHouseAsyncMetrics_OSMemoryTotal{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"} - ClickHouseAsyncMetrics_OSMemoryFreePlusCached{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}) / ClickHouseAsyncMetrics_OSMemoryTotal{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"} * 100",
+    "resultCount": 4
+  },
+  {
+    "panel": "Nodes Information",
+    "refId": "I",
+    "query": "(1 - ClickHouseAsyncMetrics_OSIdleTimeNormalized{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}) * 100 ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Nodes Information",
+    "refId": "J",
+    "query": "ClickHouseAsyncMetrics_OSUptime{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Disk Space Usage",
+    "refId": "B",
+    "query": "  label_replace(     {__name__=~\"ClickHouseAsyncMetrics_DiskAvailable_.*\", namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"},     \"disk\", \"$1\", \"__name__\", \"ClickHouseAsyncMetrics_DiskAvailable_(.*)\"   )",
+    "resultCount": 4
+  },
+  {
+    "panel": "Disk Space Usage",
+    "refId": "D",
+    "query": "  label_replace(     {__name__=~\"ClickHouseAsyncMetrics_DiskUsed_.*\", namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"},     \"disk\", \"$1\", \"__name__\", \"ClickHouseAsyncMetrics_DiskUsed_(.*)\"   )",
+    "resultCount": 4
+  },
+  {
+    "panel": "Disk Space Usage",
+    "refId": "C",
+    "query": "  label_replace(     {__name__=~\"ClickHouseAsyncMetrics_DiskTotal_.*\", namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"},     \"disk\", \"$1\", \"__name__\", \"ClickHouseAsyncMetrics_DiskTotal_(.*)\"   )",
+    "resultCount": 4
+  },
+  {
+    "panel": "Disk Space Usage",
+    "refId": "E",
+    "query": "  label_replace(     {__name__=~\"ClickHouseAsyncMetrics_DiskUnreserved_.*\", namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"},     \"disk\", \"$1\", \"__name__\", \"ClickHouseAsyncMetrics_DiskUnreserved_(.*)\"   )",
+    "resultCount": 4
+  },
+  {
+    "panel": "Disk Space Usage",
+    "refId": "A",
+    "query": "(   label_replace(     {__name__=~\"ClickHouseAsyncMetrics_DiskTotal_.*\", namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"},     \"disk\", \"$1\", \"__name__\", \"ClickHouseAsyncMetrics_DiskTotal_(.*)\"   )   -   label_replace(     {__name__=~\"ClickHouseAsyncMetrics_DiskAvailable_.*\", namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"},     \"disk\", \"$1\", \"__name__\", \"ClickHouseAsyncMetrics_DiskAvailable_(.*)\"   ) ) / label_replace(   {__name__=~\"ClickHouseAsyncMetrics_DiskTotal_.*\", namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"},   \"disk\", \"$1\", \"__name__\", \"ClickHouseAsyncMetrics_DiskTotal_(.*)\" ) * 100 ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Disk Usage Increase per 10min(Minus value means decrease)",
+    "refId": "A",
+    "query": "  label_replace(     {__name__=~\"ClickHouseAsyncMetrics_DiskUsed_.*\", namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"},     \"disk\", \"$1\", \"__name__\", \"ClickHouseAsyncMetrics_DiskUsed_(.*)\"   )    -    label_replace(     {__name__=~\"ClickHouseAsyncMetrics_DiskUsed_.*\", namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"} offset 10m,     \"disk\", \"$1\", \"__name__\", \"ClickHouseAsyncMetrics_DiskUsed_(.*)\"   ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "ClickHouse Service Memory Usage",
+    "refId": "A",
+    "query": "ClickHouseMetrics_MemoryTracking{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Node Memory Available(Free + Cache)",
+    "refId": "A",
+    "query": "ClickHouseAsyncMetrics_OSMemoryAvailable{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "OS Memory Total",
+    "refId": "A",
+    "query": "ClickHouseAsyncMetrics_OSMemoryTotal{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "OS Memory Buffers",
+    "refId": "A",
+    "query": "ClickHouseAsyncMetrics_OSMemoryBuffers{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Node Idle Time Percent(Per Core Average)",
+    "refId": "A",
+    "query": "ClickHouseAsyncMetrics_OSIdleTimeNormalized{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"} * 100",
+    "resultCount": 4
+  },
+  {
+    "panel": "Node IO Wait Time Percent(Per Core Average)",
+    "refId": "A",
+    "query": "ClickHouseAsyncMetrics_OSIOWaitTimeNormalized{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"} * 100",
+    "resultCount": 4
+  },
+  {
+    "panel": "Node User CPU Time Percent(Per CPU Average)",
+    "refId": "A",
+    "query": "ClickHouseAsyncMetrics_OSUserTimeNormalized{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"} * 100",
+    "resultCount": 4
+  },
+  {
+    "panel": "Realtime Disk Unreserved Space(Available - Reserved)",
+    "refId": "A",
+    "query": "  label_replace(     {__name__=~\"ClickHouseAsyncMetrics_DiskUnreserved_.*\", namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"},     \"disk\", \"$1\", \"__name__\", \"ClickHouseAsyncMetrics_DiskUnreserved_(.*)\"   )",
+    "resultCount": 4
+  },
+  {
+    "panel": "Realtime Disk Usage",
+    "refId": "A",
+    "query": "  label_replace(     {__name__=~\"ClickHouseAsyncMetrics_DiskUsed_.*\", namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"},     \"disk\", \"$1\", \"__name__\", \"ClickHouseAsyncMetrics_DiskUsed_(.*)\"   )",
+    "resultCount": 4
+  },
+  {
+    "panel": "Realtime Disk Available(Physical Free Space)",
+    "refId": "A",
+    "query": "  label_replace(     {__name__=~\"ClickHouseAsyncMetrics_DiskAvailable_.*\", namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"},     \"disk\", \"$1\", \"__name__\", \"ClickHouseAsyncMetrics_DiskAvailable_(.*)\"   )",
+    "resultCount": 4
+  },
+  {
+    "panel": "OS Memory Cache",
+    "refId": "A",
+    "query": "ClickHouseAsyncMetrics_OSMemoryCached{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "OS Memory Free(without Cached)",
+    "refId": "A",
+    "query": "ClickHouseAsyncMetrics_OSMemoryFreeWithoutCached{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "OS Memory Free(with Cached)",
+    "refId": "A",
+    "query": "ClickHouseAsyncMetrics_OSMemoryFreePlusCached{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Node System CPU Time Percent(Per Core Average)",
+    "refId": "A",
+    "query": "ClickHouseAsyncMetrics_OSSystemTimeNormalized{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"} * 100",
+    "resultCount": 4
+  },
+  {
+    "panel": "ClickHouse TCP Connections on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_TCPConnection{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "ClickHouse Service Http Connections on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_HTTPConnection{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "OS Opened Files on the fly",
+    "refId": "A",
+    "query": "ClickHouseAsyncMetrics_OSOpenFiles{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Slow reads",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_SlowRead{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Slow reads",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_SlowRead{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Read backoff",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_ReadBackoff{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Read backoff",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ReadBackoff{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Readonly Replicas",
+    "refId": "C",
+    "query": "ClickHouseErrorMetric_ACCESS_STORAGE_READONLY{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Total Rows of Merge Tree Tables",
+    "refId": "C",
+    "query": "ClickHouseAsyncMetrics_TotalRowsOfMergeTreeTables{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Total Parts of Merge Tree Tables",
+    "refId": "C",
+    "query": "ClickHouseAsyncMetrics_TotalPartsOfMergeTreeTables{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Total Bytes of Merge Tree Tables",
+    "refId": "C",
+    "query": "ClickHouseAsyncMetrics_TotalBytesOfMergeTreeTables{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Queries Per Second",
+    "refId": "D",
+    "query": "increase(ClickHouseProfileEvents_Query{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])/120",
+    "resultCount": 4
+  },
+  {
+    "panel": "SELECT Queries per Second",
+    "refId": "B",
+    "query": "rate(ClickHouseProfileEvents_SelectQuery{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "INSERT Queries per Second",
+    "refId": "B",
+    "query": "rate(ClickHouseProfileEvents_InsertQuery{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Failed SELECT queries",
+    "refId": "B",
+    "query": "rate(ClickHouseProfileEvents_FailedSelectQuery{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Failed queries per Second",
+    "refId": "B",
+    "query": "rate(ClickHouseProfileEvents_FailedQuery{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Queries Exceeded Memory Limit per Second",
+    "refId": "B",
+    "query": "rate(ClickHouseProfileEvents_QueryMemoryLimitExceeded{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Query Preempted on the fly",
+    "refId": "B",
+    "query": "ClickHouseMetrics_QueryPreempted{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Failed INSERT queries per Second",
+    "refId": "B",
+    "query": "rate(ClickHouseProfileEvents_FailedInsertQuery{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Avg All Query Time per Query",
+    "refId": "A",
+    "query": "increase(ClickHouseProfileEvents_QueryTimeMicroseconds{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) / increase(ClickHouseProfileEvents_Query{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Avg SELECT Query Time per Query",
+    "refId": "A",
+    "query": "increase(ClickHouseProfileEvents_SelectQueryTimeMicroseconds{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) / increase(ClickHouseProfileEvents_SelectQuery{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Avg INSERT Query Time per Query",
+    "refId": "A",
+    "query": "increase(ClickHouseProfileEvents_InsertQueryTimeMicroseconds{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) / increase(ClickHouseProfileEvents_InsertQuery{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
     "resultCount": 4
   },
   {
     "panel": "Inserted Rows",
-    "query": "ClickHouseProfileEvents_InsertedRows{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_InsertedRows{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
     "resultCount": 4
   },
   {
     "panel": "Inserted Bytes",
-    "query": "ClickHouseProfileEvents_InsertedBytes{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_InsertedBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
     "resultCount": 4
   },
   {
-    "panel": "ClickHouse Memory Tracking",
-    "query": "ClickHouseMetrics_MemoryTracking{namespace=\"upm-clickhouse-phase03-runtime\",pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "panel": "Inserted Bytes",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_InsertedBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Delayed Inserts",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_DelayedInserts{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Rejected Inserts",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_RejectedInserts{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Delayed inserts blocks (avg)",
+    "refId": "A",
+    "query": "increase(ClickHouseProfileEvents_DelayedInsertsMilliseconds{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) / increase(ClickHouseProfileEvents_DelayedInserts{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Selected Parts per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_SelectedParts{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Selected Total Parts per Second",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_SelectedParts{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Selected Total Parts per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_SelectedPartsTotal{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Selected Marks per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_SelectedMarks{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Selected Ranges per Second",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_SelectedRanges{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Selected Ranges per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_SelectedRanges{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Selected Bytes per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_SelectedBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Selected Rows per Second",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_SelectedRows{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Selected Rows per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_SelectedRows{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Rows Read Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaRowsRead{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Rows Written per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaRowsWritten{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Consumers in Use on the fly",
+    "refId": "C",
+    "query": "ClickHouseMetrics_KafkaConsumersInUse{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "All Consumers on the fly",
+    "refId": "C",
+    "query": "ClickHouseMetrics_KafkaConsumers{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Msg Read Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaMessagesRead{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Msgs Polled Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaMessagesPolled{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Msgs Failed Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaMessagesFailed{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Kafka Commits per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaCommits{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Producers on the fly",
+    "refId": "C",
+    "query": "ClickHouseMetrics_KafkaProducers{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Assigned Partitions on the fly",
+    "refId": "C",
+    "query": "ClickHouseMetrics_KafkaAssignedPartitions{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Background Read Operations per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaBackgroundReads{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Kafka Commit Failures per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaCommitFailures{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Rebalance Revocations Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaRebalanceRevocations{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Rows Reject Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaRowsRejected{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Kafka Consumer Errors per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaConsumerErrors{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Rebalance Assignments Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaRebalanceAssignments{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Rebalance Errors Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_KafkaRebalanceErrors{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Launched Merge Operations per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_Merge{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Merge Operation on the fly",
+    "refId": "C",
+    "query": "ClickHouseMetrics_Merge{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Merge & Mutation Memory Tracking",
+    "refId": "C",
+    "query": "ClickHouseMetrics_MergesMutationsMemoryTracking{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Uncompressed Bytes Read by Merge Operation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MergedUncompressedBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Rows Read by Merge Operation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MergedRows{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Rows Read by Merge Operation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MergedColumns{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Merged Into Compacted Parts Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MergedIntoCompactParts{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Columns Read by Merge Operation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MergedColumns{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Average Merge Duration per Merge Operation",
+    "refId": "A",
+    "query": "increase(ClickHouseProfileEvents_MergeTotalMilliseconds{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) / increase(ClickHouseProfileEvents_Merge{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Merged Into Wide Parts Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MergedIntoWideParts{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Time Used for All Merges Per Second",
+    "refId": "A",
+    "query": "rate(ClickHouseProfileEvents_MergeTotalMilliseconds{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Uncompressed Bytes Inserted to MergeTree Table per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MergeTreeDataWriterUncompressedBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Blocks Inserted to MergeTree Table Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MergeTreeDataWriterBlocks{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Disk Space Reserved for Merge on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_DiskSpaceReservedForMerge{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Rows Inserted to MergeTree Table Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MergeTreeDataWriterRows{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Compressed Bytes Inserted to MergeTree Table per Second",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_MergeTreeDataWriterCompressedBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Compressed Bytes Inserted to MergeTree Table per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MergeTreeDataWriterCompressedBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Total Time Used for Mutation per Second",
+    "refId": "A",
+    "query": "increase(ClickHouseProfileEvents_MutationTotalMilliseconds{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Execution Time Used for Mutation per Second",
+    "refId": "A",
+    "query": "increase(ClickHouseProfileEvents_MutationExecuteMilliseconds{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Rows Read by Mutation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MutatedRows{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Uncompressed Bytes Read by Mutation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MutatedUncompressedBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Mutation Some Part Columns per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MutationSomePartColumns{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Mutation All Part Columns per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MutationAllPartColumns{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Mutation Untouched Parts Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MutationUntouchedParts{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Parts Mutated per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MutationTotalParts{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Rejected Mutations per Second",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_RejectedMutations{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Rejected Mutations per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_RejectedMutations{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundCommonPool Task on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundCommonPoolTask{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundCommonPool Size",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundCommonPoolSize{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundMovePool Task on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundMovePoolTask{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundMovePool Size",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundMovePoolSize{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundBufferFlushSchedulePool Task on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundBufferFlushSchedulePoolTask{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundBufferFlushSchedulePool Size",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundBufferFlushSchedulePoolSize{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundMergeAndMutationPool Task on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundMergesAndMutationsPoolTask{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundMergeAndMutationPool Size",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundMergesAndMutationsPoolSize{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundMessageBrokerSchedulePool Task on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundMessageBrokerSchedulePoolTask{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundMessageBrokerSchedulePool Size",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundMessageBrokerSchedulePoolSize{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundFetchesPool Task on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundFetchesPoolTask{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundFetchesPool Size",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundFetchesPoolSize{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundSchedulePool Task on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundSchedulePoolTask{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundSchedulePool Size",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundSchedulePoolSize{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundDistributedSchedulePool Task on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundDistributedSchedulePoolTask{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "BackgroundDistributedSchedulePool Size",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackgroundDistributedSchedulePoolSize{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Backup IO Threads on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackupsIOThreads{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Backup IO Threads Active on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackupsIOThreadsActive{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Backup Threads on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackupsThreads{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Restore Threads on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_RestoreThreads{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Restore Threads Active on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_RestoreThreadsActive{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Backup Threads Active on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_BackupsThreadsActive{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Lseek Happened per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_Seek{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Read on the fly",
+    "refId": "C",
+    "query": "ClickHouseMetrics_Read{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Read Ops from File Descriptor per Second(Socket Not Included)",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_ReadBufferFromFileDescriptorRead{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Read Ops from File Descriptor per Second(Socket Not Included)",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ReadBufferFromFileDescriptorRead{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Open File Ops per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_FileOpen{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Read Failure from File Descriptor per Second(Socket Not Included)",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ReadBufferFromFileDescriptorReadFailed{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Write Ops to File Descriptor per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_WriteBufferFromFileDescriptorWrite{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Read Bytes from File Descriptor per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ReadBufferFromFileDescriptorReadBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Write Failure to File Descriptor per Second(Socket Not Included)",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_WriteBufferFromFileDescriptorWriteFailed{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Read Compressed Bytes per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ReadCompressedBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Write Bytes to File Descriptor per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_WriteBufferFromFileDescriptorWriteBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Compressed Blocks Read per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_CompressedReadBufferBlocks{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Read Uncompressed Bytes per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_CompressedReadBufferBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Network Send Bytes per Second(For ClickHouse)",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_NetworkSendBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Network Send Bytes per Second(For ClickHouse)",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_NetworkReceiveBytes{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Readonly replica",
+    "refId": "A",
+    "query": "ClickHouseMetrics_ReadonlyReplica{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Failed Fetch for Replicated Part per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ReplicatedPartFailedFetches{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Fetch Request of Replicated Parts per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ReplicatedPartFetches{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Fetch Request for Merged Parts of Replicated Parts",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ReplicatedPartFetchesOfMerged{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Merges for ReplicatedMergeTree Parts",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ReplicatedPartMerges{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Times that We Found Lost Parts",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ReplicatedDataLoss{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Uncompressed Cache Hits",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_UncompressedCacheHits{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Uncompressed Cache Hits",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_UncompressedCacheHits{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Uncompressed Cache Misses",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_UncompressedCacheMisses{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Uncompressed Cache Misses",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_UncompressedCacheMisses{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Mark Cache Hits",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MarkCacheHits{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Mark Cache Misses",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_MarkCacheMisses{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Mark Cache Misses",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_MarkCacheMisses{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Temporary Parts on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_PartsTemporary{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Pre-Active Parts on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_PartsPreActive{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Committed Parts on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_PartsCommitted{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Outdated Parts on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_PartsOutdated{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Deleting Parts on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_PartsDeleting{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Parts Deleting on Destroy on the fly",
+    "refId": "A",
+    "query": "ClickHouseMetrics_PartsDeleteOnDestroy{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Wide Parts",
+    "refId": "A",
+    "query": "ClickHouseMetrics_PartsWide{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Compact Parts",
+    "refId": "A",
+    "query": "ClickHouseMetrics_PartsCompact{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Distributed Send Connections",
+    "refId": "A",
+    "query": "ClickHouseMetrics_DistributedSend{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of Pending Files to Process for Asynchronous Insertion to Dist Tables",
+    "refId": "A",
+    "query": "ClickHouseMetrics_DistributedFilesToInsert{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Distributed Delayed Inserts per Second Due to Throttling",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_DistributedDelayedInserts{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Distributed Rejected Inserts per Second Due to High Number of Pending",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_DistributedRejectedInserts{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Avg Time of Distributed Delayed Inserts",
+    "refId": "A",
+    "query": "increase(ClickHouseProfileEvents_DistributedDelayedInsertsMilliseconds{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) / increase(ClickHouseProfileEvents_DistributedDelayedInserts{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m])",
+    "resultCount": 4
+  },
+  {
+    "panel": "Total Count of  Distributed Connection Failed with Retry",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_DistributedConnectionFailTry{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Distributed connection fail at all",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_DistributedConnectionFailAtAll{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Distributed connection fail at all",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_DistributedConnectionFailAtAll{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Distributed sync insertation timeout",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_DistributedSyncInsertionTimeoutExceeded{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Distributed sync insertation timeout",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_DistributedSyncInsertionTimeoutExceeded{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated Zookeeper Connections Per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperInit{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initialized All Zookeeper Operation per Second",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_ZooKeeperTransactions{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initialized All Zookeeper Operation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperTransactions{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [List] Zookeeper Operation",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_ZooKeeperList{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [List] Zookeeper Operation",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperList{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [Create] Zookeeper Operations per Second",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_ZooKeeperCreate{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [Create] Zookeeper Operations per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperCreate{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [Remove] Zookeeper Operation per Second",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_ZooKeeperRemove{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [Remove] Zookeeper Operation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperRemove{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [Exists] Zookeeper Operations per Second",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_ZooKeeperExists{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [Exists] Zookeeper Operations per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperExists{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [Get] Zookeeper Operation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperGet{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [Set] Zookeeper Operation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperSet{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [Multi] Zookeeper Operation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperMulti{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [Check] Zookeeper Operation per Second",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_ZooKeeperCheck{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [Check] Zookeeper Operation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperCheck{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Initiated [Close] Zookeeper Operation per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperClose{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "User Exceptions",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_ZooKeeperUserExceptions{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "User Exceptions",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperUserExceptions{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Hardware Exceptions",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_ZooKeeperHardwareExceptions{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Hardware Exceptions",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperHardwareExceptions{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Bytes Received from Zookeeper",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_ZooKeeperBytesReceived{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Bytes Received from Zookeeper",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperBytesReceived{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Bytes Sent to Zookeeper",
+    "refId": "A",
+    "query": "max_over_time( (irate(ClickHouseProfileEvents_ZooKeeperBytesSent{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]))[2m:15s] ) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Bytes Sent to Zookeeper",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_ZooKeeperBytesSent{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
+    "resultCount": 4
+  },
+  {
+    "panel": "Sessions",
+    "refId": "A",
+    "query": "ClickHouseMetrics_ZooKeeperSession{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Ephemeral Node",
+    "refId": "A",
+    "query": "ClickHouseMetrics_EphemeralNode{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}",
+    "resultCount": 4
+  },
+  {
+    "panel": "Number of CannotRemoveEphemeralNode Failures per Second",
+    "refId": "C",
+    "query": "rate(ClickHouseProfileEvents_CannotRemoveEphemeralNode{namespace=\"upm-clickhouse-phase03-runtime\", pod=~\"clickhouse-phase03-[0-9]+\"}[2m]) ",
     "resultCount": 4
   }
 ]
