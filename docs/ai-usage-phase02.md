@@ -648,3 +648,31 @@ Codex will summarize submitted evidence and append it to the log below.
   - The imported dashboard has 185 panels.
   - 170 data panels and 207 visible target queries returned samples.
   - The final validation ended with `PASS phase05_monitoring_runtime_validation`.
+
+### Entry 015 - Phase 05 Review Response
+
+- Date: 2026-06-07
+- AI tools: Claude Code, Codex
+- Topic: Review and closeout repair for Phase 05 monitoring
+- Review artifact:
+  - `docs/review/phase-05-review.md`
+- Claude Code verdict:
+  - PASS, proceed to Phase 06.
+  - Five non-blocking findings: hardcoded ClickHouse container name in PromQL,
+    missing direct `GetMetricsSummary` orchestration tests, dashboard canonical
+    versus runtime evidence relationship, probe row-count documentation, and
+    `firstAvailableMetrics` empty-result semantics.
+- Codex response:
+  - Accepted the PASS verdict but treated non-blocking findings as closeout
+    hardening work where the repair was low risk.
+  - Added a `clickHouseContainerName` constant for CPU/memory PromQL.
+  - Added direct table-driven `GetMetricsSummary` orchestration tests covering
+    READY, DEGRADED, missing target, query error, missing PodMonitor, storage
+    fallback, and all-storage-empty behavior.
+  - Documented the canonical Grafana dashboard asset versus the runtime
+    Grafana API evidence copy.
+  - Clarified the healthcheck probe row-count multiplier.
+  - Changed `firstAvailableMetrics` to distinguish all-empty successful query
+    results from all-error query results.
+- Resolution artifact:
+  - `docs/review/phase-05-review-response.md`

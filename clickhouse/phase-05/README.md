@@ -63,6 +63,11 @@ saved as:
 clickhouse/grafana/upm-clickhouse-23285-dashboard.json
 ```
 
+This file is the canonical provisioning asset. The saved
+`clickhouse/phase-05/grafana-dashboard.json` file is the runtime-exported
+Grafana API response for the same dashboard, including Grafana metadata, and is
+kept as validation evidence.
+
 Current runtime evidence proves 170 data panels and 207 visible target queries.
 
 ## Manual API Call

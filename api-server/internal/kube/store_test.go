@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -267,11 +270,234 @@ func TestFirstAvailableMetricsUsesFallbackOnlyWhenNeeded(t *testing.T) {
 		},
 		errors: map[string]error{"primary": errors.New("primary unavailable")},
 	}
-	samples, err := firstAvailableMetrics(context.Background(), querier, "primary", "fallback", "unused")
+	samples, found, err := firstAvailableMetrics(context.Background(), querier, "primary", "fallback", "unused")
 	if err != nil {
 		t.Fatalf("expected fallback query to pass: %v", err)
 	}
-	if len(samples) != 1 || len(querier.queries) != 2 || querier.queries[1] != "fallback" {
-		t.Fatalf("unexpected fallback behavior: samples=%#v queries=%#v", samples, querier.queries)
+	if !found || len(samples) != 1 || len(querier.queries) != 2 || querier.queries[1] != "fallback" {
+		t.Fatalf("unexpected fallback behavior: found=%v samples=%#v queries=%#v", found, samples, querier.queries)
 	}
+}
+
+func TestFirstAvailableMetricsDistinguishesAllEmptyFromAllErrors(t *testing.T) {
+	emptyQuerier := &fakePrometheusQuerier{results: map[string][]promclient.Sample{}, errors: map[string]error{}}
+	samples, found, err := firstAvailableMetrics(context.Background(), emptyQuerier, "primary", "fallback")
+	if err != nil || found || len(samples) != 0 {
+		t.Fatalf("expected empty successful queries to be reported without error: found=%v samples=%#v err=%v", found, samples, err)
+	}
+
+	errorQuerier := &fakePrometheusQuerier{
+		results: map[string][]promclient.Sample{},
+		errors:  map[string]error{"primary": errors.New("primary failed"), "fallback": errors.New("fallback failed")},
+	}
+	_, found, err = firstAvailableMetrics(context.Background(), errorQuerier, "primary", "fallback")
+	if err == nil || found {
+		t.Fatalf("expected all query errors to return an error: found=%v err=%v", found, err)
+	}
+}
+
+func TestGetMetricsSummaryOrchestration(t *testing.T) {
+	namespace := "upm-clickhouse"
+	name := "clickhouse-demo"
+	queries := metricsSummaryTestQueries(namespace, name)
+
+	tests := []struct {
+		name              string
+		includePodMonitor bool
+		mutatePrometheus  func(*fakePrometheusQuerier)
+		wantStatus        string
+		wantWarning       string
+		wantStorage       int
+	}{
+		{
+			name:              "ready when targets and all metric categories exist",
+			includePodMonitor: true,
+			wantStatus:        "READY",
+			wantStorage:       3,
+		},
+		{
+			name:              "degraded when an expected target is missing",
+			includePodMonitor: true,
+			mutatePrometheus: func(prom *fakePrometheusQuerier) {
+				prom.results[queries.target] = prom.results[queries.target][:3]
+			},
+			wantStatus:  "DEGRADED",
+			wantWarning: "Prometheus target for clickhouse-demo-3 is missing",
+			wantStorage: 3,
+		},
+		{
+			name:              "degraded when CPU query fails and other categories remain",
+			includePodMonitor: true,
+			mutatePrometheus: func(prom *fakePrometheusQuerier) {
+				prom.errors[queries.cpu] = errors.New("cpu unavailable")
+			},
+			wantStatus:  "DEGRADED",
+			wantWarning: "cpu metrics query failed",
+			wantStorage: 3,
+		},
+		{
+			name:              "degraded when PodMonitor is missing",
+			includePodMonitor: false,
+			wantStatus:        "DEGRADED",
+			wantWarning:       "PodMonitor upm-clickhouse/clickhouse-demo-exporter-podmon is not readable or does not exist",
+			wantStorage:       3,
+		},
+		{
+			name:              "storage fallback is used when primary query is empty",
+			includePodMonitor: true,
+			wantStatus:        "READY",
+			wantStorage:       3,
+		},
+		{
+			name:              "degraded when every storage query is empty",
+			includePodMonitor: true,
+			mutatePrometheus: func(prom *fakePrometheusQuerier) {
+				prom.results[queries.storageFallback] = nil
+			},
+			wantStatus:  "DEGRADED",
+			wantWarning: "storage metrics are missing",
+			wantStorage: 0,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			prometheus := metricsSummaryPrometheusFixtures(namespace, name)
+			if test.mutatePrometheus != nil {
+				test.mutatePrometheus(prometheus)
+			}
+			store := metricsSummaryStoreFixture(namespace, name, test.includePodMonitor, prometheus)
+
+			summary, err := store.GetMetricsSummary(context.Background(), namespace, name)
+			if err != nil {
+				t.Fatalf("GetMetricsSummary returned error: %v", err)
+			}
+			if summary.Status != test.wantStatus {
+				t.Fatalf("status=%s, want %s, warnings=%v", summary.Status, test.wantStatus, summary.Warnings)
+			}
+			if test.wantWarning != "" && !containsString(summary.Warnings, test.wantWarning) {
+				t.Fatalf("warnings=%v, want %q", summary.Warnings, test.wantWarning)
+			}
+			if len(summary.Targets) != 4 {
+				t.Fatalf("expected 4 targets, got %#v", summary.Targets)
+			}
+			if len(summary.Summary.Storage) != test.wantStorage {
+				t.Fatalf("storage sample count=%d, want %d", len(summary.Summary.Storage), test.wantStorage)
+			}
+			if len(summary.Summary.Memory) == 0 || len(summary.Summary.ClickHouse) == 0 {
+				t.Fatalf("expected memory and ClickHouse samples: %#v", summary.Summary)
+			}
+		})
+	}
+}
+
+type metricsSummaryQueries struct {
+	target          string
+	cpu             string
+	memory          string
+	clickhouse      string
+	storagePrimary  string
+	storageFallback string
+}
+
+func metricsSummaryTestQueries(namespace, name string) metricsSummaryQueries {
+	podPattern := name + "-[0-9]+"
+	return metricsSummaryQueries{
+		target:          fmt.Sprintf(`up{namespace=%q,pod=~%q}`, namespace, podPattern),
+		cpu:             fmt.Sprintf(`sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=%q,pod=~%q,container=%q}[2m]))`, namespace, podPattern, clickHouseContainerName),
+		memory:          fmt.Sprintf(`container_memory_working_set_bytes{namespace=%q,pod=~%q,container=%q}`, namespace, podPattern, clickHouseContainerName),
+		clickhouse:      fmt.Sprintf(`{__name__=~"ClickHouseProfileEvents_(Query|InsertQuery|InsertedRows|InsertedBytes)|ClickHouseMetrics_MemoryTracking",namespace=%q,pod=~%q}`, namespace, podPattern),
+		storagePrimary:  fmt.Sprintf(`kubelet_volume_stats_used_bytes{namespace=%q,persistentvolumeclaim=~%q}`, namespace, name+"-[0-9]+-data"),
+		storageFallback: fmt.Sprintf(`{__name__=~"ClickHouseAsyncMetrics_Disk(Used|Total|Available)_default",namespace=%q,pod=~%q}`, namespace, podPattern),
+	}
+}
+
+func metricsSummaryPrometheusFixtures(namespace, name string) *fakePrometheusQuerier {
+	queries := metricsSummaryTestQueries(namespace, name)
+	pods := []string{name + "-0", name + "-1", name + "-2", name + "-3"}
+	targets := make([]promclient.Sample, 0, len(pods))
+	cpu := make([]promclient.Sample, 0, len(pods))
+	memory := make([]promclient.Sample, 0, len(pods))
+	clickhouse := make([]promclient.Sample, 0, len(pods))
+	storage := []promclient.Sample{}
+	for index, pod := range pods {
+		targets = append(targets, promclient.Sample{Metric: map[string]string{"namespace": namespace, "pod": pod}, Value: 1})
+		cpu = append(cpu, promclient.Sample{Metric: map[string]string{"namespace": namespace, "pod": pod}, Value: float64(index + 1)})
+		memory = append(memory, promclient.Sample{Metric: map[string]string{"namespace": namespace, "pod": pod}, Value: float64(1024 * (index + 1))})
+		clickhouse = append(clickhouse, promclient.Sample{Metric: map[string]string{"__name__": "ClickHouseProfileEvents_Query", "namespace": namespace, "pod": pod}, Value: float64(10 + index)})
+	}
+	for _, metric := range []string{
+		"ClickHouseAsyncMetrics_DiskUsed_default",
+		"ClickHouseAsyncMetrics_DiskTotal_default",
+		"ClickHouseAsyncMetrics_DiskAvailable_default",
+	} {
+		storage = append(storage, promclient.Sample{Metric: map[string]string{"__name__": metric, "namespace": namespace, "pod": pods[0]}, Value: 100})
+	}
+	return &fakePrometheusQuerier{
+		results: map[string][]promclient.Sample{
+			queries.target:          targets,
+			queries.cpu:             cpu,
+			queries.memory:          memory,
+			queries.clickhouse:      clickhouse,
+			queries.storagePrimary:  {},
+			queries.storageFallback: storage,
+		},
+		errors: map[string]error{},
+	}
+}
+
+func metricsSummaryStoreFixture(namespace, name string, includePodMonitor bool, prometheus *fakePrometheusQuerier) *Store {
+	request := model.CreateClusterRequest{
+		Namespace: namespace,
+		Name:      name,
+		Version:   "26.3.9.8",
+		Topology:  model.Topology{Shards: 2, ReplicasPerShard: 2, KeeperReplicas: 3},
+		Storage: model.Storage{
+			ClassName:      "local-path",
+			ServerDataSize: "20Gi",
+			KeeperDataSize: "10Gi",
+		},
+		Security:   model.Security{AdminSecretRef: name + "-secret"},
+		Monitoring: model.MonitoringConfig{Enabled: true},
+	}
+	dynamicObjects := []runtime.Object{serverUnitSet(request), keeperUnitSet(request)}
+	if includePodMonitor {
+		dynamicObjects = append(dynamicObjects, &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "monitoring.coreos.com/v1",
+			"kind":       "PodMonitor",
+			"metadata": map[string]any{
+				"name":      name + "-exporter-podmon",
+				"namespace": namespace,
+			},
+		}})
+	}
+	coreObjects := []runtime.Object{
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: "clickhouse-26.3.9.8-config-value", Namespace: managerNamespace},
+			Data:       map[string]string{"clickhouse": "topology:\n  shards: \"2\"\n  replicasPerShard: \"2\"\nkeeper:\n  replicas: \"3\"\n"},
+		},
+	}
+	for index := 0; index < 4; index++ {
+		coreObjects = append(coreObjects, &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-%d", name, index),
+				Namespace: namespace,
+				Labels:    map[string]string{serviceGroupNameLabel: name, serviceTypeLabel: "clickhouse"},
+			},
+		})
+	}
+	return NewStoreWithPrometheus(
+		dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), dynamicObjects...),
+		fake.NewSimpleClientset(coreObjects...),
+		prometheus,
+	)
+}
+
+func containsString(values []string, needle string) bool {
+	for _, value := range values {
+		if value == needle {
+			return true
+		}
+	}
+	return false
 }

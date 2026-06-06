@@ -51,6 +51,7 @@ const (
 	healthcheckDatabase                = "upm_healthcheck"
 	healthcheckLocalTable              = "local_events"
 	healthcheckDistributedTable        = "dist_events"
+	clickHouseContainerName            = "clickhouse"
 )
 
 var (
@@ -485,13 +486,13 @@ func (s *Store) GetMetricsSummary(ctx context.Context, namespace, name string) (
 	}{
 		{
 			category: "cpu",
-			query:    fmt.Sprintf(`sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=%q,pod=~%q,container="clickhouse"}[2m]))`, namespace, podPattern),
+			query:    fmt.Sprintf(`sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=%q,pod=~%q,container=%q}[2m]))`, namespace, podPattern, clickHouseContainerName),
 			unit:     "cores",
 			assign:   func(samples []model.MetricSample) { summary.Summary.CPU = samples },
 		},
 		{
 			category: "memory",
-			query:    fmt.Sprintf(`container_memory_working_set_bytes{namespace=%q,pod=~%q,container="clickhouse"}`, namespace, podPattern),
+			query:    fmt.Sprintf(`container_memory_working_set_bytes{namespace=%q,pod=~%q,container=%q}`, namespace, podPattern, clickHouseContainerName),
 			unit:     "bytes",
 			assign:   func(samples []model.MetricSample) { summary.Summary.Memory = samples },
 		},
@@ -515,7 +516,7 @@ func (s *Store) GetMetricsSummary(ctx context.Context, namespace, name string) (
 		}
 	}
 
-	storageSamples, storageErr := firstAvailableMetrics(ctx, s.prometheus,
+	storageSamples, storageFound, storageErr := firstAvailableMetrics(ctx, s.prometheus,
 		fmt.Sprintf(`kubelet_volume_stats_used_bytes{namespace=%q,persistentvolumeclaim=~%q}`, namespace, regexp.QuoteMeta(name)+`-[0-9]+-data`),
 		fmt.Sprintf(`{__name__=~"ClickHouseAsyncMetrics_Disk(Used|Total|Available)_default",namespace=%q,pod=~%q}`, namespace, podPattern),
 	)
@@ -523,7 +524,7 @@ func (s *Store) GetMetricsSummary(ctx context.Context, namespace, name string) (
 		summary.Warnings = append(summary.Warnings, "storage metrics queries failed")
 	} else {
 		summary.Summary.Storage = metricSamples(storageSamples, "bytes")
-		if len(summary.Summary.Storage) == 0 {
+		if !storageFound {
 			summary.Warnings = append(summary.Warnings, "storage metrics are missing")
 		}
 	}
@@ -534,19 +535,24 @@ func (s *Store) GetMetricsSummary(ctx context.Context, namespace, name string) (
 	return summary, nil
 }
 
-func firstAvailableMetrics(ctx context.Context, querier prometheusQuerier, queries ...string) ([]promclient.Sample, error) {
+func firstAvailableMetrics(ctx context.Context, querier prometheusQuerier, queries ...string) ([]promclient.Sample, bool, error) {
 	var lastErr error
+	hadSuccess := false
 	for _, query := range queries {
 		samples, err := querier.Query(ctx, query)
 		if err != nil {
 			lastErr = err
 			continue
 		}
+		hadSuccess = true
 		if len(samples) > 0 {
-			return samples, nil
+			return samples, true, nil
 		}
 	}
-	return nil, lastErr
+	if hadSuccess {
+		return nil, false, nil
+	}
+	return nil, false, lastErr
 }
 
 func metricSamples(samples []promclient.Sample, unit string) []model.MetricSample {
@@ -1305,6 +1311,9 @@ INSERT INTO %[1]s.%[4]s VALUES
 }
 
 func healthcheckProbeRowCount(topology model.Topology) int {
+	// Four rows per shard gives deterministic validation coverage for the
+	// supported 2- and 4-shard MVP topologies; SQL assertions below remain the
+	// authoritative check for the actual post-write distribution.
 	rows := topology.Shards * 4
 	if rows < 8 {
 		return 8
