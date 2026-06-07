@@ -715,3 +715,32 @@ Codex will summarize submitted evidence and append it to the log below.
     returned `actualRows=8` and `expectedRows=8`.
   - The final validation ended with
     `PASS phase06_diagnostics_runtime_validation`.
+
+### Entry 017 - Phase 06 Review Response
+
+- Date: 2026-06-07
+- AI tools: Claude Code, Codex
+- Topic: Review and closeout repair for Phase 06 Day2 read-only diagnostics
+- Review artifact:
+  - `docs/review/phase-06-review.md`
+- Claude Code verdict:
+  - PASS, proceed to Phase 07.
+  - Five non-blocking findings: numeric parser errors were hidden as zero,
+    pure diagnostics helpers lacked direct tests, filter validation was
+    duplicated, query-log table aggregation could become large in extreme
+    cases, and `RunDiagnostics` orchestration lacked direct tests.
+- Codex response:
+  - Accepted the PASS verdict but repaired the low-risk implementation gaps
+    before closeout.
+  - Changed numeric parsers to return errors and made diagnostics record
+    `numeric_parse_error` evidence with `UNKNOWN` severity instead of silently
+    treating malformed evidence as zero.
+  - Added tests for SQL quoting, WHERE construction, severity ranking, numeric
+    parsing, parse issue evidence, map copying, no server Pod behavior, and SQL
+    exec failure degradation.
+  - Kept duplicate filter validation intentionally because store-level
+    validation is a defensive boundary for future non-HTTP callers.
+  - Deferred query-log table aggregation hardening to future persistent write
+    analytics or multi-tenant query-log work.
+- Resolution artifact:
+  - `docs/review/phase-06-review-response.md`

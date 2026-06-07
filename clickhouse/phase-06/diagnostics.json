@@ -1,10 +1,10 @@
 {
-  "requestId": "req-f3a09be6cdef16a1",
+  "requestId": "req-97c52c56ed328d2a",
   "namespace": "upm-clickhouse-phase03-runtime",
   "name": "clickhouse-phase03",
   "cluster": "clickhouse-phase03",
   "status": "UNKNOWN",
-  "generatedAt": "2026-06-07T06:37:57.892363365Z",
+  "generatedAt": "2026-06-07T07:48:33.345064298Z",
   "filters": {
     "limit": 20
   },

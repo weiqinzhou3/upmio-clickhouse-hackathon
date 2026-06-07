@@ -95,11 +95,12 @@ func (s *Store) addReplicaDiagnostics(ctx context.Context, report *model.Diagnos
 			issues = append(issues, map[string]any{"row": row, "reason": "unexpected column count"})
 			continue
 		}
-		readOnly := parseInt(row[3])
-		sessionExpired := parseInt(row[4])
-		delay := parseInt(row[5])
-		queueSize := parseInt(row[6])
-		futureParts := parseInt(row[7])
+		parseIssues := []map[string]any{}
+		readOnly := diagnosticInt(row[3], "is_readonly", &parseIssues)
+		sessionExpired := diagnosticInt(row[4], "is_session_expired", &parseIssues)
+		delay := diagnosticInt(row[5], "absolute_delay", &parseIssues)
+		queueSize := diagnosticInt(row[6], "queue_size", &parseIssues)
+		futureParts := diagnosticInt(row[7], "future_parts", &parseIssues)
 		item := map[string]any{
 			"host":             row[0],
 			"database":         row[1],
@@ -113,6 +114,10 @@ func (s *Store) addReplicaDiagnostics(ctx context.Context, report *model.Diagnos
 		replicas = append(replicas, item)
 		itemSeverity := model.DiagnosticSeverityInfo
 		reasons := []string{}
+		if len(parseIssues) > 0 {
+			itemSeverity = maxDiagnosticSeverity(itemSeverity, model.DiagnosticSeverityUnknown)
+			reasons = append(reasons, "numeric_parse_error")
+		}
 		if readOnly != 0 {
 			itemSeverity = maxDiagnosticSeverity(itemSeverity, model.DiagnosticSeverityCritical)
 			reasons = append(reasons, "readonly")
@@ -138,6 +143,9 @@ func (s *Store) addReplicaDiagnostics(ctx context.Context, report *model.Diagnos
 		if itemSeverity != model.DiagnosticSeverityInfo {
 			issue := copyStringAnyMap(item)
 			issue["reasons"] = reasons
+			if len(parseIssues) > 0 {
+				issue["parseIssues"] = parseIssues
+			}
 			issues = append(issues, issue)
 			severity = maxDiagnosticSeverity(severity, itemSeverity)
 		}
@@ -184,8 +192,9 @@ func (s *Store) addReplicationQueueDiagnostics(ctx context.Context, report *mode
 			issues = append(issues, map[string]any{"row": row, "reason": "unexpected column count"})
 			continue
 		}
-		queueSize := parseInt(row[2])
-		oldestAge := parseInt(row[3])
+		parseIssues := []map[string]any{}
+		queueSize := diagnosticInt(row[2], "queue_size", &parseIssues)
+		oldestAge := diagnosticInt(row[3], "oldest_age_seconds", &parseIssues)
 		lastException := row[4]
 		item := map[string]any{
 			"database":         row[0],
@@ -197,6 +206,10 @@ func (s *Store) addReplicationQueueDiagnostics(ctx context.Context, report *mode
 		queues = append(queues, item)
 		itemSeverity := model.DiagnosticSeverityInfo
 		reasons := []string{}
+		if len(parseIssues) > 0 {
+			itemSeverity = maxDiagnosticSeverity(itemSeverity, model.DiagnosticSeverityUnknown)
+			reasons = append(reasons, "numeric_parse_error")
+		}
 		if queueSize >= thresholds.ReplicationQueueCritical {
 			itemSeverity = maxDiagnosticSeverity(itemSeverity, model.DiagnosticSeverityCritical)
 			reasons = append(reasons, "queue_size_critical")
@@ -211,6 +224,9 @@ func (s *Store) addReplicationQueueDiagnostics(ctx context.Context, report *mode
 		if itemSeverity != model.DiagnosticSeverityInfo {
 			issue := copyStringAnyMap(item)
 			issue["reasons"] = reasons
+			if len(parseIssues) > 0 {
+				issue["parseIssues"] = parseIssues
+			}
 			issues = append(issues, issue)
 			severity = maxDiagnosticSeverity(severity, itemSeverity)
 		}
@@ -263,16 +279,27 @@ func (s *Store) addPartDiagnostics(ctx context.Context, report *model.Diagnostic
 			issues = append(issues, map[string]any{"row": row, "reason": "unexpected table column count"})
 			continue
 		}
-		inactiveParts := parseInt(row[3])
+		parseIssues := []map[string]any{}
+		activeParts := diagnosticInt(row[2], "active_parts", &parseIssues)
+		inactiveParts := diagnosticInt(row[3], "inactive_parts", &parseIssues)
+		activeRows := diagnosticInt64(row[4], "active_rows", &parseIssues)
+		activeBytes := diagnosticInt64(row[5], "active_bytes", &parseIssues)
 		item := map[string]any{
 			"database":      row[0],
 			"table":         row[1],
-			"activeParts":   parseInt(row[2]),
+			"activeParts":   activeParts,
 			"inactiveParts": inactiveParts,
-			"activeRows":    parseInt64(row[4]),
-			"activeBytes":   parseInt64(row[5]),
+			"activeRows":    activeRows,
+			"activeBytes":   activeBytes,
 		}
 		tables = append(tables, item)
+		if len(parseIssues) > 0 {
+			issue := copyStringAnyMap(item)
+			issue["reason"] = "numeric_parse_error"
+			issue["parseIssues"] = parseIssues
+			issues = append(issues, issue)
+			severity = maxDiagnosticSeverity(severity, model.DiagnosticSeverityUnknown)
+		}
 		if inactiveParts >= thresholds.InactivePartsWarn {
 			issue := copyStringAnyMap(item)
 			issue["reason"] = "inactive_parts_warn"
@@ -286,16 +313,26 @@ func (s *Store) addPartDiagnostics(ctx context.Context, report *model.Diagnostic
 			issues = append(issues, map[string]any{"row": row, "reason": "unexpected partition column count"})
 			continue
 		}
-		activeParts := parseInt(row[3])
+		parseIssues := []map[string]any{}
+		activeParts := diagnosticInt(row[3], "active_parts", &parseIssues)
+		rows := diagnosticInt64(row[4], "rows", &parseIssues)
+		bytes := diagnosticInt64(row[5], "bytes", &parseIssues)
 		item := map[string]any{
 			"database":    row[0],
 			"table":       row[1],
 			"partition":   row[2],
 			"activeParts": activeParts,
-			"rows":        parseInt64(row[4]),
-			"bytes":       parseInt64(row[5]),
+			"rows":        rows,
+			"bytes":       bytes,
 		}
 		partitions = append(partitions, item)
+		if len(parseIssues) > 0 {
+			issue := copyStringAnyMap(item)
+			issue["reason"] = "numeric_parse_error"
+			issue["parseIssues"] = parseIssues
+			issues = append(issues, issue)
+			severity = maxDiagnosticSeverity(severity, model.DiagnosticSeverityUnknown)
+		}
 		if activeParts >= thresholds.ActivePartsPerPartitionWarn {
 			issue := copyStringAnyMap(item)
 			issue["reason"] = "active_parts_per_partition_warn"
@@ -344,16 +381,26 @@ func (s *Store) addMergeDiagnostics(ctx context.Context, report *model.Diagnosti
 			issues = append(issues, map[string]any{"row": row, "reason": "unexpected column count"})
 			continue
 		}
-		elapsed := parseFloat(row[2])
+		parseIssues := []map[string]any{}
+		elapsed := diagnosticFloat(row[2], "elapsed", &parseIssues)
+		progress := diagnosticFloat(row[3], "progress", &parseIssues)
+		numParts := diagnosticInt(row[4], "num_parts", &parseIssues)
 		item := map[string]any{
 			"database":       row[0],
 			"table":          row[1],
 			"elapsedSeconds": elapsed,
-			"progress":       parseFloat(row[3]),
-			"numParts":       parseInt(row[4]),
+			"progress":       progress,
+			"numParts":       numParts,
 			"resultPartName": row[5],
 		}
 		merges = append(merges, item)
+		if len(parseIssues) > 0 {
+			issue := copyStringAnyMap(item)
+			issue["reason"] = "numeric_parse_error"
+			issue["parseIssues"] = parseIssues
+			issues = append(issues, issue)
+			severity = maxDiagnosticSeverity(severity, model.DiagnosticSeverityUnknown)
+		}
 		if int(elapsed) >= report.Thresholds.MergeElapsedWarnSeconds {
 			issue := copyStringAnyMap(item)
 			issue["reason"] = "merge_elapsed_warn"
@@ -401,8 +448,9 @@ func (s *Store) addMutationDiagnostics(ctx context.Context, report *model.Diagno
 			issues = append(issues, map[string]any{"row": row, "reason": "unexpected column count"})
 			continue
 		}
-		isDone := parseInt(row[4])
-		age := parseInt(row[5])
+		parseIssues := []map[string]any{}
+		isDone := diagnosticInt(row[4], "is_done", &parseIssues)
+		age := diagnosticInt(row[5], "age_seconds", &parseIssues)
 		failedReason := row[8]
 		item := map[string]any{
 			"database":         row[0],
@@ -418,6 +466,10 @@ func (s *Store) addMutationDiagnostics(ctx context.Context, report *model.Diagno
 		mutations = append(mutations, item)
 		itemSeverity := model.DiagnosticSeverityInfo
 		reasons := []string{}
+		if len(parseIssues) > 0 {
+			itemSeverity = maxDiagnosticSeverity(itemSeverity, model.DiagnosticSeverityUnknown)
+			reasons = append(reasons, "numeric_parse_error")
+		}
 		if strings.TrimSpace(failedReason) != "" {
 			itemSeverity = maxDiagnosticSeverity(itemSeverity, model.DiagnosticSeverityCritical)
 			reasons = append(reasons, "latest_fail_reason")
@@ -429,6 +481,9 @@ func (s *Store) addMutationDiagnostics(ctx context.Context, report *model.Diagno
 		if itemSeverity != model.DiagnosticSeverityInfo {
 			issue := copyStringAnyMap(item)
 			issue["reasons"] = reasons
+			if len(parseIssues) > 0 {
+				issue["parseIssues"] = parseIssues
+			}
 			issues = append(issues, issue)
 			severity = maxDiagnosticSeverity(severity, itemSeverity)
 		}
@@ -563,23 +618,42 @@ func (s *Store) addWriteClientStatsDiagnostics(ctx context.Context, report *mode
 		return
 	}
 	clients := make([]map[string]any, 0, len(rows))
+	issues := []map[string]any{}
 	for _, row := range rows {
 		if len(row) < 6 {
+			issues = append(issues, map[string]any{"row": row, "reason": "unexpected column count"})
 			continue
 		}
+		parseIssues := []map[string]any{}
 		clients = append(clients, map[string]any{
 			"user":         row[0],
 			"clientIP":     row[1],
 			"targetTables": row[2],
-			"queries":      parseInt(row[3]),
-			"writtenRows":  parseInt64(row[4]),
-			"writtenBytes": parseInt64(row[5]),
+			"queries":      diagnosticInt(row[3], "queries", &parseIssues),
+			"writtenRows":  diagnosticInt64(row[4], "written_rows", &parseIssues),
+			"writtenBytes": diagnosticInt64(row[5], "written_bytes", &parseIssues),
 		})
+		if len(parseIssues) > 0 {
+			issues = append(issues, map[string]any{
+				"user":         row[0],
+				"clientIP":     row[1],
+				"targetTables": row[2],
+				"reason":       "numeric_parse_error",
+				"parseIssues":  parseIssues,
+			})
+		}
 	}
-	report.AddFinding("write_client_stats", model.DiagnosticSeverityInfo, "Recent write client statistics are available", map[string]any{
+	severity := model.DiagnosticSeverityInfo
+	title := "Recent write client statistics are available"
+	if len(issues) > 0 {
+		severity = model.DiagnosticSeverityUnknown
+		title = "Recent write client statistics contain unparseable evidence"
+	}
+	report.AddFinding("write_client_stats", severity, title, map[string]any{
 		"window":  "24h",
 		"clients": clients,
-	}, "Use this read-only summary for DBA investigation; persistent write analytics is future scope.", false)
+		"issues":  issues,
+	}, "Use this read-only summary for DBA investigation; persistent write analytics is future scope.", severity != model.DiagnosticSeverityInfo)
 }
 
 func (s *Store) addWriteQualityDiagnostics(ctx context.Context, report *model.DiagnosticsReport, namespace, podName string, filter model.DiagnosticsFilter) {
@@ -610,7 +684,16 @@ func (s *Store) addWriteQualityDiagnostics(ctx context.Context, report *model.Di
 		addDiagnosticQueryFailure(report, "write_quality", "Read-only row-count validation query failed", err, query, "Check database/table existence and optional partition/time filter correctness.")
 		return
 	}
-	actualRows := parseInt64(strings.TrimSpace(value))
+	actualRows, parseErr := parseInt64(value)
+	if parseErr != nil {
+		report.AddFinding("write_quality", model.DiagnosticSeverityUnknown, "Read-only row-count validation returned unparseable evidence", map[string]any{
+			"database": filter.Database,
+			"table":    filter.Table,
+			"value":    trimEvidence(value),
+			"error":    errString(parseErr),
+		}, "Check ClickHouse count() output format and SQL reachability before trusting row-count validation.", true)
+		return
+	}
 	severity := model.DiagnosticSeverityInfo
 	title := "Read-only row-count validation completed"
 	recommendation := "No action required unless expectedRows is provided and does not match."
@@ -689,19 +772,60 @@ func clickHouseIdentifier(value string) string {
 	return "`" + value + "`"
 }
 
-func parseInt(value string) int {
-	parsed, _ := strconv.Atoi(strings.TrimSpace(value))
+func diagnosticInt(value, field string, issues *[]map[string]any) int {
+	parsed, err := parseInt(value)
+	if err != nil {
+		appendDiagnosticParseIssue(issues, field, value, err)
+	}
 	return parsed
 }
 
-func parseInt64(value string) int64 {
-	parsed, _ := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+func diagnosticInt64(value, field string, issues *[]map[string]any) int64 {
+	parsed, err := parseInt64(value)
+	if err != nil {
+		appendDiagnosticParseIssue(issues, field, value, err)
+	}
 	return parsed
 }
 
-func parseFloat(value string) float64 {
-	parsed, _ := strconv.ParseFloat(strings.TrimSpace(value), 64)
+func diagnosticFloat(value, field string, issues *[]map[string]any) float64 {
+	parsed, err := parseFloat(value)
+	if err != nil {
+		appendDiagnosticParseIssue(issues, field, value, err)
+	}
 	return parsed
+}
+
+func parseInt(value string) (int, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, fmt.Errorf("empty integer")
+	}
+	return strconv.Atoi(value)
+}
+
+func parseInt64(value string) (int64, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, fmt.Errorf("empty integer")
+	}
+	return strconv.ParseInt(value, 10, 64)
+}
+
+func parseFloat(value string) (float64, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, fmt.Errorf("empty float")
+	}
+	return strconv.ParseFloat(value, 64)
+}
+
+func appendDiagnosticParseIssue(issues *[]map[string]any, field, value string, err error) {
+	*issues = append(*issues, map[string]any{
+		"field": field,
+		"value": trimEvidence(value),
+		"error": errString(err),
+	})
 }
 
 func maxDiagnosticSeverity(current, next string) string {

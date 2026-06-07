@@ -1,10 +1,10 @@
 {
-  "requestId": "req-65070c0ec3e96343",
+  "requestId": "req-81f7edb5f863c6bc",
   "namespace": "upm-clickhouse-phase03-runtime",
   "name": "clickhouse-phase03",
   "cluster": "clickhouse-phase03",
   "status": "UNKNOWN",
-  "generatedAt": "2026-06-07T06:38:01.580150448Z",
+  "generatedAt": "2026-06-07T07:48:35.910308605Z",
   "filters": {
     "database": "upm_healthcheck",
     "table": "dist_events",
