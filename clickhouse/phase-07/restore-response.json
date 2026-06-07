@@ -1,0 +1,22 @@
+{
+  "requestId": "req-2b6d435bac649df6",
+  "name": "clickhouse-phase03-restore-krjnh",
+  "namespace": "upm-clickhouse-phase03-runtime",
+  "cluster": "clickhouse-phase03",
+  "type": "restore",
+  "status": "Pending",
+  "message": "task job is pending",
+  "jobRef": {
+    "namespace": "upm-clickhouse-phase03-runtime",
+    "name": "clickhouse-phase03-restore-krjnh"
+  },
+  "evidence": {
+    "backupPath": "backups/clickhouse-phase03/manual-20260607T093319Z",
+    "backupPathPrefix": "",
+    "logError": "read backup task logs: container \"clickhouse-task\" in pod \"clickhouse-phase03-restore-krjnh-wgzfr\" is waiting to start: ContainerCreating",
+    "logsRedacted": true,
+    "source": "upm_backup_validation.events",
+    "storageSecretRef": "clickhouse-backup-secret",
+    "target": "upm_restore_validation.events_restored"
+  }
+}

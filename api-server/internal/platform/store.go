@@ -14,4 +14,11 @@ type Store interface {
 	RunHealthcheck(context.Context, string, string) (model.HealthcheckReport, error)
 	GetMetricsSummary(context.Context, string, string) (model.MetricsSummary, error)
 	RunDiagnostics(context.Context, string, string, model.DiagnosticsFilter) (model.DiagnosticsReport, error)
+	CreateBackup(context.Context, string, string, model.BackupRequest) (model.TaskStatus, error)
+	CreateRestore(context.Context, string, string, model.RestoreRequest) (model.TaskStatus, error)
+	GetTask(context.Context, string, string, string) (model.TaskStatus, error)
+	CreateBackupSchedule(context.Context, string, string, model.BackupScheduleRequest) (model.BackupScheduleStatus, error)
+	ListBackupSchedules(context.Context, string, string) ([]model.BackupScheduleStatus, error)
+	GetBackupSchedule(context.Context, string, string, string) (model.BackupScheduleStatus, error)
+	DeleteBackupSchedule(context.Context, string, string, string) error
 }

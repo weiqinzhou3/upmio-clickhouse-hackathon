@@ -1,0 +1,28 @@
+{
+  "requestId": "req-f0bbbb73b8722bd0",
+  "name": "clickhouse-phase03-backup-vd5mv",
+  "namespace": "upm-clickhouse-phase03-runtime",
+  "cluster": "clickhouse-phase03",
+  "type": "backup",
+  "status": "Succeeded",
+  "message": "Reached expected number of succeeded pods",
+  "startTime": "2026-06-07T09:33:27Z",
+  "completionTime": "2026-06-07T09:33:30Z",
+  "jobRef": {
+    "namespace": "upm-clickhouse-phase03-runtime",
+    "name": "clickhouse-phase03-backup-vd5mv"
+  },
+  "podRef": {
+    "namespace": "upm-clickhouse-phase03-runtime",
+    "name": "clickhouse-phase03-backup-vd5mv-h4zbj"
+  },
+  "evidence": {
+    "backupPath": "backups/clickhouse-phase03/manual-20260607T093319Z",
+    "backupPathPrefix": "",
+    "logTail": "[2026-06-07T09:33:28Z] starting backup path=backups/clickhouse-phase03/manual-20260607T093319Z\n316b6d7a-5519-4b64-ab10-9d5ea9ea2a76\tBACKUP_CREATED\n[2026-06-07T09:33:28Z] backup completed path=backups/clickhouse-phase03/manual-20260607T093319Z",
+    "logsRedacted": true,
+    "source": "upm_backup_validation.events",
+    "storageSecretRef": "clickhouse-backup-secret",
+    "target": ""
+  }
+}

@@ -190,6 +190,11 @@ Required safety fields:
 
 Restore must require explicit confirmation and must avoid overwriting existing data unless a later phase defines a safe overwrite protocol.
 
+For ReplicatedMergeTree validation objects, restore must not reuse the source
+table's Keeper path. The Kubernetes Job path should verify that the target table
+does not exist, create an empty validation target table, and restore data into
+that target without overwriting existing objects.
+
 ## 8. Task Status Model
 
 Required API:

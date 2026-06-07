@@ -1,14 +1,15 @@
 # UPM API Server v1 API Reference
 
-- Version: 0.8
+- Version: 0.9
 - Date: 2026-06-07
-- Status: Implemented and runtime validated through Phase 06
+- Status: Implemented through Phase 07
 - Owner: zqw
 - Related:
   - ../master-spec.md
   - ../phases/phase-03-upm-api-server.md
   - ../phases/phase-04-healthcheck.md
   - ../phases/phase-06-day2-diagnostics.md
+  - ../phases/phase-07-backup-restore.md
   - ../design/api-design.md
 
 ## 1. Purpose
@@ -120,6 +121,13 @@ Current error codes:
 | `CLUSTER_NOT_FOUND` | 404 | Managed cluster does not exist |
 | `HEALTHCHECK_REPORT_NOT_FOUND` | 404 | Latest in-memory healthcheck report does not exist |
 | `PROMETHEUS_UNAVAILABLE` | 503 | Configured Prometheus API cannot be queried |
+| `BACKUP_STORAGE_SECRET_NOT_FOUND` | 422 | Referenced backup storage Secret does not exist |
+| `BACKUP_STORAGE_SECRET_KEY_MISSING` | 422 | Backup storage Secret lacks a required S3 key |
+| `BACKUP_TASK_NOT_FOUND` | 404 | Backup or restore Job is absent or is not API-managed for the cluster |
+| `BACKUP_SCHEDULE_ALREADY_EXISTS` | 409 | API-managed backup schedule already exists |
+| `BACKUP_SCHEDULE_NOT_FOUND` | 404 | Backup schedule CronJob is absent or is not API-managed for the cluster |
+| `CLICKHOUSE_POD_NOT_AVAILABLE` | 422 | No ClickHouse Server Pod is available to derive task runtime |
+| `CLICKHOUSE_IMAGE_NOT_FOUND` | 422 | ClickHouse task image cannot be discovered from a server Pod |
 | `KUBERNETES_FORBIDDEN` | 403 | API server RBAC does not permit the operation |
 | `UPMIO_UNITSET_NOT_READY` | 504 | Keeper UnitSet did not become ready before timeout |
 | `KUBERNETES_API_ERROR` | 500 | Kubernetes API operation failed |
@@ -784,17 +792,395 @@ curl -fsS \
   | jq '.status, .summary, [.findings[] | {category,severity,title}]'
 ```
 
-## 9. Not Supported After Phase 06
+## 9. Backup And Restore APIs
 
-These APIs are registered in later phase specs and must not be claimed as
-supported until implemented and validated:
+Phase 07 implements backup, restore, task status, and API-managed scheduled
+backup through Kubernetes `Job` and `CronJob` resources created by
+`upm-api-server`.
 
-| API | Phase |
+Credential rule:
+
+- Request bodies may reference Kubernetes Secrets by name.
+- Request bodies must not contain ClickHouse passwords, AES keys, S3 access
+  keys, S3 secret keys, or any credential plaintext.
+
+Required backup storage Secret:
+
+| Key | Required | Description |
+|---|---:|---|
+| `S3_ENDPOINT` | Yes | S3-compatible endpoint URL, for example `http://upm-backup-minio.namespace.svc.cluster.local:9000` |
+| `S3_BUCKET` | Yes | Bucket name |
+| `S3_ACCESS_KEY` | Yes | Object storage access key |
+| `S3_SECRET_KEY` | Yes | Object storage secret key |
+| `S3_USE_SSL` | No | Reserved optional flag; endpoint scheme remains authoritative |
+
+### 9.1 Create Backup Task
+
+```http
+POST /api/v1/clusters/{namespace}/{name}/backup
+```
+
+Purpose:
+
+- Create an immediate Kubernetes `Job` that runs ClickHouse native `BACKUP`
+  against a single validation database/table scope.
+
+Path parameters:
+
+| Parameter | Required | Description |
+|---|---:|---|
+| `namespace` | Yes | Managed ClickHouse cluster namespace |
+| `name` | Yes | Managed ClickHouse cluster name |
+
+Query parameters: none.
+
+Request body:
+
+| Field | Required | Description |
+|---|---:|---|
+| `scope.database` | Yes | Source database; ClickHouse identifier `[A-Za-z_][A-Za-z0-9_]*` |
+| `scope.table` | Yes | Source table; ClickHouse identifier `[A-Za-z_][A-Za-z0-9_]*` |
+| `storage.type` | No | Only `s3` is supported; defaults to `s3` |
+| `storage.secretRef` | Yes | Kubernetes Secret containing S3 credentials |
+| `storage.path` | No | Relative object path. Defaults to `backups/{cluster}/manual-{timestamp}` |
+| `execution.type` | No | Only `kubernetesJob` is supported; defaults to `kubernetesJob` |
+| `dryRun` | No | Kubernetes server dry-run for Job creation when `true`; default `false` |
+
+Success HTTP status: `202 Accepted`.
+
+Example:
+
+```bash
+curl -fsS -X POST \
+  -H 'Content-Type: application/json' \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/backup" \
+  -d '{
+    "scope": {"database": "upm_backup_validation", "table": "events"},
+    "storage": {
+      "type": "s3",
+      "secretRef": "clickhouse-backup-secret",
+      "path": "backups/clickhouse-phase03/manual-20260607T120000Z"
+    },
+    "execution": {"type": "kubernetesJob"},
+    "dryRun": false
+  }' | jq .
+```
+
+### 9.2 Create Restore Task
+
+```http
+POST /api/v1/clusters/{namespace}/{name}/restore
+```
+
+Purpose:
+
+- Create a Kubernetes `Job` that restores an existing backup object into a
+  different validation database/table target.
+- Restore requires explicit confirmation and a reason.
+- The target table must not already exist. For validation restores, the task
+  creates an empty target table and restores data into it without reusing the
+  source ReplicatedMergeTree Keeper path.
+
+Path parameters:
+
+| Parameter | Required | Description |
+|---|---:|---|
+| `namespace` | Yes | Managed ClickHouse cluster namespace |
+| `name` | Yes | Managed ClickHouse cluster name |
+
+Query parameters: none.
+
+Request body:
+
+| Field | Required | Description |
+|---|---:|---|
+| `backupRef` | Yes | Relative backup object path. Defaults `storage.path` when omitted |
+| `source.database` | Yes | Database/table name inside the backup object |
+| `source.table` | Yes | Source table name inside the backup object |
+| `target.database` | Yes | Restore target database; must differ from source object |
+| `target.table` | Yes | Restore target table; must differ from source object |
+| `storage.type` | No | Only `s3` is supported; defaults to `s3` |
+| `storage.secretRef` | Yes | Kubernetes Secret containing S3 credentials |
+| `storage.path` | No | Relative backup object path; defaults to `backupRef` |
+| `execution.type` | No | Only `kubernetesJob` is supported; defaults to `kubernetesJob` |
+| `confirm` | Yes | Must be `true` |
+| `reason` | Yes | Human-readable restore reason, maximum 512 characters |
+| `dryRun` | No | Kubernetes server dry-run for Job creation when `true`; default `false` |
+
+Success HTTP status: `202 Accepted`.
+
+Example:
+
+```bash
+curl -fsS -X POST \
+  -H 'Content-Type: application/json' \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/restore" \
+  -d '{
+    "backupRef": "backups/clickhouse-phase03/manual-20260607T120000Z",
+    "source": {"database": "upm_backup_validation", "table": "events"},
+    "target": {"database": "upm_restore_validation", "table": "events_restored"},
+    "storage": {
+      "type": "s3",
+      "secretRef": "clickhouse-backup-secret"
+    },
+    "execution": {"type": "kubernetesJob"},
+    "confirm": true,
+    "reason": "phase 07 restore validation"
+  }' | jq .
+```
+
+### 9.3 Get Backup Or Restore Task
+
+```http
+GET /api/v1/clusters/{namespace}/{name}/tasks/{taskName}
+```
+
+Purpose:
+
+- Read Kubernetes `Job`, latest Pod, exit status, and redacted log evidence for
+  a backup or restore task.
+
+Path parameters:
+
+| Parameter | Required | Description |
+|---|---:|---|
+| `namespace` | Yes | Managed ClickHouse cluster namespace |
+| `name` | Yes | Managed ClickHouse cluster name |
+| `taskName` | Yes | API-created Kubernetes Job name |
+
+Query parameters: none.
+
+Request body: none.
+
+Success HTTP status: `200 OK`.
+
+Task status values:
+
+| Value | Meaning |
 |---|---|
-| `POST /api/v1/clusters/{namespace}/{name}/backup` | Phase 07 |
-| `POST /api/v1/clusters/{namespace}/{name}/restore` | Phase 07 |
-| `GET /api/v1/clusters/{namespace}/{name}/tasks/{taskName}` | Phase 07 |
-| `POST /api/v1/clusters/{namespace}/{name}/backup-schedules` | Phase 07 |
-| `GET /api/v1/clusters/{namespace}/{name}/backup-schedules` | Phase 07 |
-| `GET /api/v1/clusters/{namespace}/{name}/backup-schedules/{scheduleName}` | Phase 07 |
-| `DELETE /api/v1/clusters/{namespace}/{name}/backup-schedules/{scheduleName}` | Phase 07 |
+| `Pending` | Job exists but no active/success/failed status is available yet |
+| `Running` | Job has active Pods |
+| `Succeeded` | Job completed successfully |
+| `Failed` | Job failed |
+| `Unknown` | Reserved for future status mapping |
+
+Response fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | Kubernetes Job name |
+| `namespace` | string | Kubernetes namespace |
+| `cluster` | string | Managed cluster name |
+| `type` | string | `backup` or `restore` |
+| `status` | string | Task status |
+| `message` | string | Kubernetes Job condition message or derived task message |
+| `startTime` | timestamp | Job start time when available |
+| `completionTime` | timestamp | Job completion time when available |
+| `jobRef` | object | Job namespace/name |
+| `podRef` | object | Latest task Pod namespace/name when available |
+| `evidence.backupPath` | string | Manual backup/restore object path |
+| `evidence.backupPathPrefix` | string | Scheduled backup path prefix when applicable |
+| `evidence.source` | string | Source database/table |
+| `evidence.target` | string | Restore target database/table when applicable |
+| `evidence.storageSecretRef` | string | Referenced storage Secret name, not Secret value |
+| `evidence.logsRedacted` | boolean | `true` when log evidence is redacted |
+| `evidence.logTail` | string | Last task log lines, with known secret values redacted |
+| `requestId` | string | Request correlation ID |
+
+Usage:
+
+```bash
+curl -fsS \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/tasks/clickhouse-phase03-backup-abcde" \
+  | jq .
+```
+
+### 9.4 Create Backup Schedule
+
+```http
+POST /api/v1/clusters/{namespace}/{name}/backup-schedules
+```
+
+Purpose:
+
+- Create an API-managed Kubernetes `CronJob` for recurring ClickHouse backup.
+- Every scheduled run appends a UTC timestamp and Pod hostname to
+  `storage.pathPrefix` to avoid overwriting previous backups.
+
+Path parameters:
+
+| Parameter | Required | Description |
+|---|---:|---|
+| `namespace` | Yes | Managed ClickHouse cluster namespace |
+| `name` | Yes | Managed ClickHouse cluster name |
+
+Query parameters: none.
+
+Request body:
+
+| Field | Required | Description |
+|---|---:|---|
+| `name` | Yes | DNS-safe schedule name |
+| `schedule` | Yes | Five-field Kubernetes CronJob expression |
+| `timeZone` | No | Kubernetes CronJob timezone, for example `Asia/Shanghai` |
+| `scope.database` | Yes | Backup source database |
+| `scope.table` | Yes | Backup source table |
+| `storage.type` | No | Only `s3` is supported; defaults to `s3` |
+| `storage.secretRef` | Yes | Kubernetes Secret containing S3 credentials |
+| `storage.pathPrefix` | Yes | Relative object path prefix for scheduled runs |
+| `execution.type` | No | Only `kubernetesCronJob` is supported; defaults to `kubernetesCronJob` |
+| `execution.concurrencyPolicy` | No | `Allow`, `Forbid`, or `Replace`; defaults to `Forbid` |
+| `execution.successfulJobsHistoryLimit` | No | Successful child Jobs retained by Kubernetes; defaults to `1` |
+| `execution.failedJobsHistoryLimit` | No | Failed child Jobs retained by Kubernetes; defaults to `1` |
+| `suspend` | No | Create the CronJob suspended when `true`; default `false` |
+
+Success HTTP status: `202 Accepted`.
+
+Example:
+
+```bash
+curl -fsS -X POST \
+  -H 'Content-Type: application/json' \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/backup-schedules" \
+  -d '{
+    "name": "validation-every-minute",
+    "schedule": "*/1 * * * *",
+    "timeZone": "Asia/Shanghai",
+    "scope": {"database": "upm_backup_validation", "table": "events"},
+    "storage": {
+      "type": "s3",
+      "secretRef": "clickhouse-backup-secret",
+      "pathPrefix": "backups/clickhouse-phase03/scheduled"
+    },
+    "execution": {
+      "type": "kubernetesCronJob",
+      "concurrencyPolicy": "Forbid",
+      "successfulJobsHistoryLimit": 1,
+      "failedJobsHistoryLimit": 1
+    },
+    "suspend": false
+  }' | jq .
+```
+
+### 9.5 List Backup Schedules
+
+```http
+GET /api/v1/clusters/{namespace}/{name}/backup-schedules
+```
+
+Purpose:
+
+- List API-managed backup schedules for one managed ClickHouse cluster.
+
+Path parameters:
+
+| Parameter | Required | Description |
+|---|---:|---|
+| `namespace` | Yes | Managed ClickHouse cluster namespace |
+| `name` | Yes | Managed ClickHouse cluster name |
+
+Query parameters: none.
+
+Request body: none.
+
+Success HTTP status: `200 OK`.
+
+Response:
+
+```json
+{
+  "items": []
+}
+```
+
+### 9.6 Get Backup Schedule
+
+```http
+GET /api/v1/clusters/{namespace}/{name}/backup-schedules/{scheduleName}
+```
+
+Purpose:
+
+- Read one API-managed backup CronJob, active jobs, and recent child Job
+  evidence.
+
+Path parameters:
+
+| Parameter | Required | Description |
+|---|---:|---|
+| `namespace` | Yes | Managed ClickHouse cluster namespace |
+| `name` | Yes | Managed ClickHouse cluster name |
+| `scheduleName` | Yes | Backup schedule name from the create request |
+
+Query parameters: none.
+
+Request body: none.
+
+Success HTTP status: `200 OK`.
+
+Response fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | API schedule name |
+| `namespace` | string | Kubernetes namespace |
+| `cluster` | string | Managed cluster name |
+| `schedule` | string | Kubernetes CronJob expression |
+| `timeZone` | string | CronJob timezone when set |
+| `suspend` | boolean | CronJob suspend flag |
+| `activeJobs` | array | Active child Job references |
+| `lastScheduleTime` | timestamp | Last CronJob schedule time when available |
+| `lastSuccessfulTime` | timestamp | Last successful CronJob time when available |
+| `recentJobs` | array | Recent child Jobs using the task status shape from section 9.3 |
+| `storageSecretRef` | string | Referenced storage Secret name, not Secret value |
+| `backupPathPrefix` | string | Scheduled backup object prefix |
+| `successfulJobsHistoryLimit` | integer | Successful child Jobs retained by Kubernetes |
+| `failedJobsHistoryLimit` | integer | Failed child Jobs retained by Kubernetes |
+| `requestId` | string | Request correlation ID |
+
+Usage:
+
+```bash
+curl -fsS \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/backup-schedules/validation-every-minute" \
+  | jq .
+```
+
+### 9.7 Delete Backup Schedule
+
+```http
+DELETE /api/v1/clusters/{namespace}/{name}/backup-schedules/{scheduleName}
+```
+
+Purpose:
+
+- Delete one API-managed backup CronJob.
+- The API verifies the CronJob belongs to the requested managed cluster before
+  deleting it.
+
+Path parameters:
+
+| Parameter | Required | Description |
+|---|---:|---|
+| `namespace` | Yes | Managed ClickHouse cluster namespace |
+| `name` | Yes | Managed ClickHouse cluster name |
+| `scheduleName` | Yes | Backup schedule name from the create request |
+
+Query parameters: none.
+
+Request body: none.
+
+Success HTTP status: `204 No Content`.
+
+Usage:
+
+```bash
+curl -fsS -X DELETE \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/backup-schedules/validation-every-minute"
+```
+
+## 10. Not Supported After Phase 07
+
+No Phase 08 lifecycle/scaling APIs are supported by this reference yet. They
+must not be claimed until `docs/phases/phase-08-config-lifecycle-scaling.md` is
+implemented and validated.

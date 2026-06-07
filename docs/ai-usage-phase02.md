@@ -771,3 +771,35 @@ Codex will summarize submitted evidence and append it to the log below.
   - `docs/api/upm-api-server-v1.md`
   - `docs/phases/phase-07-backup-restore.md`
   - `docs/ai-usage-phase02.md`
+
+### Entry 019 - Phase 07 Backup/Restore Runtime Implementation
+
+- Date: 2026-06-07
+- AI tool: Codex
+- Topic: Implement and validate backup, restore, task status, and scheduled
+  backup APIs
+- Human requirement:
+  - Backup/restore is a required database operations capability.
+  - Scheduled backup must be exposed through `upm-api-server`.
+  - Validation must use real Kubernetes apply/runtime checks and database
+    read/write verification, not dry-run-only evidence.
+- Codex implementation:
+  - Added `upm-api-server` model, routing, store interface, K8s Job/CronJob
+    rendering, task status, schedule status, and unit tests for Phase 07.
+  - Added RBAC for `jobs`, `cronjobs`, and `pods/log`.
+  - Added API documentation for all Phase 07 endpoints, request parameters,
+    response fields, error codes, and usage examples.
+  - Added `clickhouse/phase-07/scripts/validate-backup-restore-runtime.sh`.
+- Runtime evidence and AI correction loop:
+  - First runtime backup attempt failed because ClickHouse rejects archive
+    backup paths such as `.zip` for `BACKUP ... ON CLUSTER`. Codex changed the
+    default path model to S3 directory-style paths.
+  - First runtime restore attempt failed because direct restore of a
+    ReplicatedMergeTree backup reused the source Keeper path. Codex changed the
+    restore Job to verify that the target table does not exist, create an empty
+    validation target table, and restore data with `allow_different_table_def`.
+  - The final validation completed manual backup, manual restore, scheduled
+    backup, scheduled backup restore, schedule list, and schedule delete through
+    API calls and Kubernetes Job/CronJob evidence.
+- Final runtime result:
+  - `PASS phase07_backup_restore_runtime_validation`

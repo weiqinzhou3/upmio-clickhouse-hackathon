@@ -10,6 +10,7 @@ import (
 
 	"github.com/weiqinzhou3/upmio-clickhouse-hackathon/api-server/internal/model"
 	promclient "github.com/weiqinzhou3/upmio-clickhouse-hackathon/api-server/internal/prometheus"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -380,6 +381,93 @@ func TestRunDiagnosticsSQLFailuresBecomeUnknownFindings(t *testing.T) {
 		if finding.Severity != model.DiagnosticSeverityUnknown {
 			t.Fatalf("category %s severity=%s, want UNKNOWN", category, finding.Severity)
 		}
+	}
+}
+
+func TestBackupJobUsesSecretRefs(t *testing.T) {
+	runtime := backupRuntime{
+		Namespace:       "upm-clickhouse",
+		Name:            "clickhouse-demo",
+		Image:           "localhost/upmio/clickhouse:26.3.9.8-runtime",
+		AdminSecretName: "clickhouse-demo-secret",
+		ClickHouseHost:  "clickhouse-demo-0-svc.upm-clickhouse.svc",
+	}
+	job := backupJob(
+		runtime,
+		model.TaskTypeBackup,
+		model.BackupScope{Database: "upm_backup_validation", Table: "events"},
+		model.RestoreTarget{},
+		"clickhouse-backup-secret",
+		"backups/ch/manual",
+		"",
+	)
+	container := job.Spec.Template.Spec.Containers[0]
+	if container.Image != runtime.Image {
+		t.Fatalf("unexpected image: %s", container.Image)
+	}
+	if job.Annotations[backupPathAnnotation] != "backups/ch/manual" {
+		t.Fatalf("backup path annotation missing: %#v", job.Annotations)
+	}
+	if secretName := job.Spec.Template.Spec.Volumes[0].Secret.SecretName; secretName != runtime.AdminSecretName {
+		t.Fatalf("admin secret volume=%s, want %s", secretName, runtime.AdminSecretName)
+	}
+	for _, env := range container.Env {
+		if env.Name == backupStorageSecretKey && (env.ValueFrom == nil || env.ValueFrom.SecretKeyRef == nil || env.Value != "") {
+			t.Fatalf("S3 secret key must be sourced from SecretKeyRef only: %#v", env)
+		}
+		if strings.Contains(env.Value, "secret-value") {
+			t.Fatalf("rendered Job must not contain plaintext secret values: %#v", env)
+		}
+	}
+}
+
+func TestBackupCronJobUsesScheduleDefaults(t *testing.T) {
+	successful := int32(1)
+	failed := int32(1)
+	request := model.BackupScheduleRequest{
+		Name:     "validation-every-minute",
+		Schedule: "*/1 * * * *",
+		TimeZone: "Asia/Shanghai",
+		Scope:    model.BackupScope{Database: "upm_backup_validation", Table: "events"},
+		Storage:  model.BackupStorage{Type: model.StorageTypeS3, SecretRef: "clickhouse-backup-secret", PathPrefix: "backups/ch/scheduled"},
+		Execution: model.BackupExecution{
+			Type:                       model.ExecutionTypeKubernetesCronJob,
+			ConcurrencyPolicy:          "Forbid",
+			SuccessfulJobsHistoryLimit: &successful,
+			FailedJobsHistoryLimit:     &failed,
+		},
+	}
+	cronJob := backupCronJob(backupRuntime{
+		Namespace:       "upm-clickhouse",
+		Name:            "clickhouse-demo",
+		Image:           "localhost/upmio/clickhouse:26.3.9.8-runtime",
+		AdminSecretName: "clickhouse-demo-secret",
+		ClickHouseHost:  "clickhouse-demo-0-svc.upm-clickhouse.svc",
+	}, request, backupScheduleResourceName("clickhouse-demo", request.Name))
+
+	if cronJob.Spec.ConcurrencyPolicy != batchv1.ForbidConcurrent {
+		t.Fatalf("unexpected concurrency policy: %s", cronJob.Spec.ConcurrencyPolicy)
+	}
+	if cronJob.Spec.TimeZone == nil || *cronJob.Spec.TimeZone != "Asia/Shanghai" {
+		t.Fatalf("timezone not rendered: %#v", cronJob.Spec.TimeZone)
+	}
+	if cronJob.Annotations[backupPathPrefixAnnotation] != "backups/ch/scheduled" {
+		t.Fatalf("path prefix annotation missing: %#v", cronJob.Annotations)
+	}
+}
+
+func TestTaskStatusFromJobStatus(t *testing.T) {
+	job := &batchv1.Job{Status: batchv1.JobStatus{Active: 1}}
+	if got := taskStatusFromJobStatus(job); got != model.TaskStatusRunning {
+		t.Fatalf("status=%s, want Running", got)
+	}
+	job.Status = batchv1.JobStatus{Succeeded: 1}
+	if got := taskStatusFromJobStatus(job); got != model.TaskStatusSucceeded {
+		t.Fatalf("status=%s, want Succeeded", got)
+	}
+	job.Status = batchv1.JobStatus{Failed: 1}
+	if got := taskStatusFromJobStatus(job); got != model.TaskStatusFailed {
+		t.Fatalf("status=%s, want Failed", got)
 	}
 }
 

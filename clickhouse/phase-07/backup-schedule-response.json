@@ -1,0 +1,15 @@
+{
+  "requestId": "req-4de43a46b9adc217",
+  "name": "validation-every-minute",
+  "namespace": "upm-clickhouse-phase03-runtime",
+  "cluster": "clickhouse-phase03",
+  "schedule": "*/1 * * * *",
+  "timeZone": "Asia/Shanghai",
+  "suspend": false,
+  "activeJobs": [],
+  "recentJobs": null,
+  "storageSecretRef": "clickhouse-backup-secret",
+  "backupPathPrefix": "backups/clickhouse-phase03/scheduled",
+  "successfulJobsHistoryLimit": 1,
+  "failedJobsHistoryLimit": 1
+}
