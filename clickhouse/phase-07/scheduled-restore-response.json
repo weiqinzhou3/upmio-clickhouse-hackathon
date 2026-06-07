@@ -1,6 +1,6 @@
 {
-  "requestId": "req-94b2cd6db57ba513",
-  "name": "clickhouse-phase03-restore-lhnzv",
+  "requestId": "req-5e48b54edc35f930",
+  "name": "clickhouse-phase03-restore-bll98",
   "namespace": "upm-clickhouse-phase03-runtime",
   "cluster": "clickhouse-phase03",
   "type": "restore",
@@ -8,12 +8,12 @@
   "message": "task job is pending",
   "jobRef": {
     "namespace": "upm-clickhouse-phase03-runtime",
-    "name": "clickhouse-phase03-restore-lhnzv"
+    "name": "clickhouse-phase03-restore-bll98"
   },
   "evidence": {
-    "backupPath": "backups/clickhouse-phase03/scheduled/20260607T093400Z-clickhouse-phase03-backup-validation-every-minute-296804144sdsk",
+    "backupPath": "backups/clickhouse-phase03/scheduled/20260607T115900Z-clickhouse-phase03-backup-validation-every-minute-296805592kb9t",
     "backupPathPrefix": "",
-    "logError": "read backup task logs: container \"clickhouse-task\" in pod \"clickhouse-phase03-restore-lhnzv-6k7xq\" is waiting to start: ContainerCreating",
+    "logError": "read backup task logs: container \"clickhouse-task\" in pod \"clickhouse-phase03-restore-bll98-tjhxl\" is waiting to start: ContainerCreating",
     "logsRedacted": true,
     "source": "upm_backup_validation.events",
     "storageSecretRef": "clickhouse-backup-secret",

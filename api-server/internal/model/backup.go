@@ -132,7 +132,7 @@ func (r BackupRequest) Validate() error {
 	if err := r.Scope.Validate("scope"); err != nil {
 		return err
 	}
-	if err := r.Storage.Validate(false); err != nil {
+	if err := r.Storage.ValidatePath(); err != nil {
 		return err
 	}
 	if r.Execution.Type != ExecutionTypeKubernetesJob {
@@ -166,7 +166,7 @@ func (r RestoreRequest) Validate() error {
 	if r.Source.Database == r.Target.Database && r.Source.Table == r.Target.Table {
 		return fmt.Errorf("target must be different from source")
 	}
-	if err := r.Storage.Validate(false); err != nil {
+	if err := r.Storage.ValidatePath(); err != nil {
 		return err
 	}
 	if r.Execution.Type != ExecutionTypeKubernetesJob {
@@ -215,7 +215,7 @@ func (r BackupScheduleRequest) Validate() error {
 	if err := r.Scope.Validate("scope"); err != nil {
 		return err
 	}
-	if err := r.Storage.Validate(true); err != nil {
+	if err := r.Storage.ValidatePathPrefix(); err != nil {
 		return err
 	}
 	if r.Execution.Type != ExecutionTypeKubernetesCronJob {
@@ -249,23 +249,34 @@ func (t RestoreTarget) Validate(prefix string) error {
 	return validateClickHouseIdentifier(prefix+".table", t.Table)
 }
 
-func (s BackupStorage) Validate(prefix bool) error {
+func (s BackupStorage) ValidatePath() error {
+	if err := s.validateCommon(); err != nil {
+		return err
+	}
+	if strings.TrimSpace(s.Path) == "" {
+		return fmt.Errorf("storage.path is required")
+	}
+	return validateSafePath("storage.path", s.Path)
+}
+
+func (s BackupStorage) ValidatePathPrefix() error {
+	if err := s.validateCommon(); err != nil {
+		return err
+	}
+	if strings.TrimSpace(s.PathPrefix) == "" {
+		return fmt.Errorf("storage.pathPrefix is required")
+	}
+	return validateSafePath("storage.pathPrefix", s.PathPrefix)
+}
+
+func (s BackupStorage) validateCommon() error {
 	if s.Type != StorageTypeS3 {
 		return fmt.Errorf("storage.type must be %s", StorageTypeS3)
 	}
 	if errs := k8svalidation.IsDNS1123Subdomain(s.SecretRef); len(errs) > 0 {
 		return fmt.Errorf("storage.secretRef: %s", errs[0])
 	}
-	if prefix {
-		if strings.TrimSpace(s.PathPrefix) == "" {
-			return fmt.Errorf("storage.pathPrefix is required")
-		}
-		return validateSafePath("storage.pathPrefix", s.PathPrefix)
-	}
-	if strings.TrimSpace(s.Path) == "" {
-		return fmt.Errorf("storage.path is required")
-	}
-	return validateSafePath("storage.path", s.Path)
+	return nil
 }
 
 func validateClickHouseIdentifier(field, value string) error {
@@ -306,9 +317,6 @@ func validateText(field, value string, maxLength int) error {
 		if unicode.IsControl(char) {
 			return fmt.Errorf("%s must not contain control characters", field)
 		}
-	}
-	if strings.Contains(value, "\x00") {
-		return fmt.Errorf("%s must not contain NUL bytes", field)
 	}
 	return nil
 }

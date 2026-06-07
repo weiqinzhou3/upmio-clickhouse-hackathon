@@ -803,3 +803,29 @@ Codex will summarize submitted evidence and append it to the log below.
     API calls and Kubernetes Job/CronJob evidence.
 - Final runtime result:
   - `PASS phase07_backup_restore_runtime_validation`
+
+### Entry 020 - Phase 07 Review Response
+
+- Date: 2026-06-07
+- AI tools: Claude Code, Codex
+- Topic: Review repair for Phase 07 backup/restore APIs
+- Review artifact:
+  - `docs/review/phase-07-review.md`
+- Claude Code findings:
+  - Two medium findings: `taskName` / `scheduleName` path parameters reused
+    namespace validation, and `BackupStorage.Validate(prefix bool)` used a
+    boolean trap.
+  - Two low findings: redundant NUL check and no direct syntax test for the
+    embedded backup Job shell script.
+- Codex response:
+  - Added `ValidateDNSLabel(field, value)` and used it for task and schedule
+    path parameters.
+  - Split backup storage validation into `ValidatePath()` and
+    `ValidatePathPrefix()`.
+  - Removed the redundant NUL check because control character validation
+    already catches NUL.
+  - Added `TestBackupJobScriptBashSyntax` using `bash -n`.
+  - Rebuilt and synced `localhost/upmio/upm-api-server:phase-07` to all four
+    Kubernetes nodes, rolled out the API server, and reran runtime validation.
+- Final runtime result:
+  - `PASS phase07_backup_restore_runtime_validation`

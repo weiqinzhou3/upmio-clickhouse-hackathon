@@ -1,6 +1,6 @@
 {
-  "requestId": "req-926146fc751ab99e",
-  "name": "clickhouse-phase03-backup-vd5mv",
+  "requestId": "req-bca10c53284717a3",
+  "name": "clickhouse-phase03-backup-xlnm8",
   "namespace": "upm-clickhouse-phase03-runtime",
   "cluster": "clickhouse-phase03",
   "type": "backup",
@@ -8,14 +8,14 @@
   "message": "task job is pending",
   "jobRef": {
     "namespace": "upm-clickhouse-phase03-runtime",
-    "name": "clickhouse-phase03-backup-vd5mv"
+    "name": "clickhouse-phase03-backup-xlnm8"
   },
   "podRef": {
     "namespace": "upm-clickhouse-phase03-runtime",
-    "name": "clickhouse-phase03-backup-vd5mv-h4zbj"
+    "name": "clickhouse-phase03-backup-xlnm8-889bn"
   },
   "evidence": {
-    "backupPath": "backups/clickhouse-phase03/manual-20260607T093319Z",
+    "backupPath": "backups/clickhouse-phase03/manual-20260607T115836Z",
     "backupPathPrefix": "",
     "logsRedacted": true,
     "source": "upm_backup_validation.events",

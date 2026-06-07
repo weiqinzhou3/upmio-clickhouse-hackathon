@@ -1,25 +1,25 @@
 {
-  "requestId": "req-f92e19bd6f16a1c8",
-  "name": "clickhouse-phase03-restore-krjnh",
+  "requestId": "req-6d3a96558327287f",
+  "name": "clickhouse-phase03-restore-q6drk",
   "namespace": "upm-clickhouse-phase03-runtime",
   "cluster": "clickhouse-phase03",
   "type": "restore",
   "status": "Succeeded",
   "message": "Reached expected number of succeeded pods",
-  "startTime": "2026-06-07T09:33:34Z",
-  "completionTime": "2026-06-07T09:33:37Z",
+  "startTime": "2026-06-07T11:58:50Z",
+  "completionTime": "2026-06-07T11:58:53Z",
   "jobRef": {
     "namespace": "upm-clickhouse-phase03-runtime",
-    "name": "clickhouse-phase03-restore-krjnh"
+    "name": "clickhouse-phase03-restore-q6drk"
   },
   "podRef": {
     "namespace": "upm-clickhouse-phase03-runtime",
-    "name": "clickhouse-phase03-restore-krjnh-wgzfr"
+    "name": "clickhouse-phase03-restore-q6drk-mc8d7"
   },
   "evidence": {
-    "backupPath": "backups/clickhouse-phase03/manual-20260607T093319Z",
+    "backupPath": "backups/clickhouse-phase03/manual-20260607T115836Z",
     "backupPathPrefix": "",
-    "logTail": "[2026-06-07T09:33:35Z] starting restore path=backups/clickhouse-phase03/manual-20260607T093319Z target=upm_restore_validation.events_restored\nclickhouse-phase03-0.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t3\t0\nclickhouse-phase03-2.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t2\t0\nclickhouse-phase03-1.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t1\t0\nclickhouse-phase03-3.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t0\t0\n0\nclickhouse-phase03-0.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t3\t0\nclickhouse-phase03-2.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t2\t0\nclickhouse-phase03-1.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t1\t0\nclickhouse-phase03-3.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtim...[truncated]",
+    "logTail": "[2026-06-07T11:58:51Z] starting restore path=backups/clickhouse-phase03/manual-20260607T115836Z target=upm_restore_validation.events_restored\nclickhouse-phase03-0.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t3\t0\nclickhouse-phase03-2.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t2\t0\nclickhouse-phase03-3.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t1\t0\nclickhouse-phase03-1.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t0\t0\n0\nclickhouse-phase03-0.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t3\t0\nclickhouse-phase03-2.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t2\t0\nclickhouse-phase03-1.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t1\t0\nclickhouse-phase03-3.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtim...[truncated]",
     "logsRedacted": true,
     "source": "upm_backup_validation.events",
     "storageSecretRef": "clickhouse-backup-secret",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -468,6 +469,15 @@ func TestTaskStatusFromJobStatus(t *testing.T) {
 	job.Status = batchv1.JobStatus{Failed: 1}
 	if got := taskStatusFromJobStatus(job); got != model.TaskStatusFailed {
 		t.Fatalf("status=%s, want Failed", got)
+	}
+}
+
+func TestBackupJobScriptBashSyntax(t *testing.T) {
+	command := exec.Command("bash", "-n")
+	command.Stdin = strings.NewReader(backupJobScript())
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("backup job script failed bash -n: %v\n%s", err, string(output))
 	}
 }
 

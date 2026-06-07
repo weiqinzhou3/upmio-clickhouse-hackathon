@@ -317,7 +317,7 @@ func (s *Server) getTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	taskName := r.PathValue("taskName")
-	if err := model.ValidateNamespace(taskName); err != nil {
+	if err := model.ValidateDNSLabel("taskName", taskName); err != nil {
 		s.writeValidationError(w, r, err)
 		return
 	}
@@ -378,7 +378,7 @@ func (s *Server) getBackupSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	scheduleName := r.PathValue("scheduleName")
-	if err := model.ValidateNamespace(scheduleName); err != nil {
+	if err := model.ValidateDNSLabel("scheduleName", scheduleName); err != nil {
 		s.writeValidationError(w, r, err)
 		return
 	}
@@ -398,7 +398,7 @@ func (s *Server) deleteBackupSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	scheduleName := r.PathValue("scheduleName")
-	if err := model.ValidateNamespace(scheduleName); err != nil {
+	if err := model.ValidateDNSLabel("scheduleName", scheduleName); err != nil {
 		s.writeValidationError(w, r, err)
 		return
 	}
