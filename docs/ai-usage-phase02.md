@@ -744,3 +744,30 @@ Codex will summarize submitted evidence and append it to the log below.
     analytics or multi-tenant query-log work.
 - Resolution artifact:
   - `docs/review/phase-06-review-response.md`
+
+### Entry 018 - Phase 07 Scope Amendment for Scheduled Backup
+
+- Date: 2026-06-07
+- AI tool: Codex
+- Topic: Add API-managed scheduled backup to Phase 07 before implementation
+- Human decision:
+  - Scheduled backup must be implemented in the hackathon MVP.
+  - Scheduled backup must be invoked and managed through `upm-api-server` APIs.
+- Codex response:
+  - Identified that the previous `master-spec` and Phase 07 spec treated the
+    backup scheduler as out of MVP scope.
+  - Recorded a new owner-approved MVP decision: Phase 07 includes a minimal
+    API-managed scheduled backup validation slice using Kubernetes CronJob.
+  - Preserved the safety boundary: no production backup policy engine, no
+    retention cleanup, no destructive restore into business tables, and no
+    plaintext credentials in API requests, ConfigMaps, logs, or Git.
+  - Updated Phase 07 to include manual backup API, restore API, task status
+    API, scheduled backup create/list/get/delete APIs, and real runtime
+    validation through Kubernetes Job/CronJob evidence.
+- Files affected:
+  - `docs/master-spec.md`
+  - `docs/design/day1-day2-requirement-coverage.md`
+  - `docs/design/api-design.md`
+  - `docs/api/upm-api-server-v1.md`
+  - `docs/phases/phase-07-backup-restore.md`
+  - `docs/ai-usage-phase02.md`

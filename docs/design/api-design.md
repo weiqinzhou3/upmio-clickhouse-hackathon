@@ -1,7 +1,7 @@
 # API Design
 
-- Version: 0.4
-- Date: 2026-06-02
+- Version: 0.5
+- Date: 2026-06-07
 - Status: Sealed
 - Owner: zqw
 - Related:
@@ -48,8 +48,13 @@ Future productization must support authentication, role-based access, and approv
 | `GET /api/v1/clusters/{namespace}/{name}/healthcheck/latest` | latest healthcheck result | optional MVP |
 | `GET /api/v1/clusters/{namespace}/{name}/diagnostics` | Day2 read-only diagnostics | yes |
 | `GET /api/v1/clusters/{namespace}/{name}/metrics/summary` | Prometheus metric summary | yes |
-| `POST /api/v1/clusters/{namespace}/{name}/backup` | future backup operation | future |
-| `POST /api/v1/clusters/{namespace}/{name}/restore` | future restore operation | future |
+| `POST /api/v1/clusters/{namespace}/{name}/backup` | create an immediate backup task | yes, Phase 07 |
+| `POST /api/v1/clusters/{namespace}/{name}/restore` | create a restore task with explicit confirmation | yes, Phase 07 |
+| `GET /api/v1/clusters/{namespace}/{name}/tasks/{taskName}` | read backup/restore task status | yes, Phase 07 |
+| `POST /api/v1/clusters/{namespace}/{name}/backup-schedules` | create an API-managed scheduled backup | yes, Phase 07 |
+| `GET /api/v1/clusters/{namespace}/{name}/backup-schedules` | list API-managed backup schedules | yes, Phase 07 |
+| `GET /api/v1/clusters/{namespace}/{name}/backup-schedules/{scheduleName}` | read scheduled backup status | yes, Phase 07 |
+| `DELETE /api/v1/clusters/{namespace}/{name}/backup-schedules/{scheduleName}` | delete an API-managed backup schedule | yes, Phase 07 |
 
 ## 4.1 Future Database Management APIs
 

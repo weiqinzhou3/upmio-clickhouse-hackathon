@@ -94,8 +94,8 @@ MVP is the first executable loop. Non-MVP requirements must still map to later p
 | Keeper leader/follower status | Yes | P0/P1 | Phase 04/06 |
 | Keeper session/connection metrics | Partial | P1 | Phase 05/06 |
 | Keeper latency | Partial | P1 | Phase 05/06 |
-| Backup task management | Partial | P1 | Phase 07 | validation task create/status only; no scheduler or retention |
-| Scheduled backup | No | P2 | Phase 07/Future |
+| Backup task management | Partial | P1 | Phase 07 | validation task create/status only; no retention |
+| Scheduled backup | Partial | P1 | Phase 07 | API-managed Kubernetes CronJob validation slice; no retention cleanup |
 | Metadata backup | Partial | P1 | Phase 07 | validation table metadata only |
 | Backup retention | No | P2 | Phase 07/Future |
 | Restore verification | Partial | P1 | Phase 07 | restore into validation database/table and verify row count/checksum where feasible |

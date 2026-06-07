@@ -793,3 +793,8 @@ supported until implemented and validated:
 |---|---|
 | `POST /api/v1/clusters/{namespace}/{name}/backup` | Phase 07 |
 | `POST /api/v1/clusters/{namespace}/{name}/restore` | Phase 07 |
+| `GET /api/v1/clusters/{namespace}/{name}/tasks/{taskName}` | Phase 07 |
+| `POST /api/v1/clusters/{namespace}/{name}/backup-schedules` | Phase 07 |
+| `GET /api/v1/clusters/{namespace}/{name}/backup-schedules` | Phase 07 |
+| `GET /api/v1/clusters/{namespace}/{name}/backup-schedules/{scheduleName}` | Phase 07 |
+| `DELETE /api/v1/clusters/{namespace}/{name}/backup-schedules/{scheduleName}` | Phase 07 |

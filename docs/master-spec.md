@@ -1,7 +1,7 @@
 # UPMIO ClickHouse Hackathon Master Spec
 
-- Version: 0.7
-- Date: 2026-06-06
+- Version: 0.8
+- Date: 2026-06-07
 - Status: Sealed
 - Project: UPMIO ClickHouse Hackathon
 - Codename: upm-clickhouse
@@ -96,7 +96,11 @@ MVP must deliver:
 8. Basic Go `upm-api-server` APIs.
 9. Day1 healthcheck and structured acceptance report.
 10. Basic read-only Day2 diagnostics: Keeper, replica, parts, merges, mutations, storage, and service endpoints.
-11. Narrow backup/restore validation slice for isolated validation objects, using an approved Kubernetes Job task path when ClickHouse GrpcCall remains unsupported.
+11. Narrow backup/restore validation slice for isolated validation objects,
+    using an approved Kubernetes Job task path when ClickHouse GrpcCall remains
+    unsupported.
+12. Minimal API-managed scheduled backup validation slice using Kubernetes
+    CronJob, without production retention cleanup.
 
 ### 4.3 Security Baseline
 
@@ -128,15 +132,18 @@ Backup/restore is required ClickHouse operations scope.
 The hackathon MVP may implement a narrow executable validation slice:
 
 - backup isolated validation database/table objects;
+- create an API-managed scheduled backup for isolated validation objects;
 - restore into a separate validation database/table;
 - verify restored data by row count and, where feasible, checksum;
 - use Kubernetes Secret references for ClickHouse and storage credentials;
 - use an approved Kubernetes Job task path if `GrpcCall(type=clickhouse)`
   remains unsupported.
+- use Kubernetes CronJob for the minimal scheduled backup API when explicitly
+  requested by the owner.
 
 The MVP still does not implement the full production backup/restore loop:
 
-- no scheduler;
+- no production backup policy engine;
 - no retention cleanup;
 - no full object storage lifecycle management;
 - no destructive restore into business tables;
@@ -384,6 +391,7 @@ Rules:
 | Use native ClickHouse Prometheus endpoint | Sealed | Simpler than exporter sidecar for MVP |
 | Do not rely on GrpcCall in MVP | Sealed | Runtime image rejects `type=clickhouse` |
 | Use Kubernetes Job path for backup/restore validation when GrpcCall remains unsupported | Sealed | Backup/restore is required database operations scope, and the hackathon demo should not depend on uncertain GrpcCall source repair |
+| Include minimal scheduled backup API in Phase 07 | Sealed | Owner requires scheduled backup to be available through API; MVP implements this through Kubernetes CronJob without production retention cleanup |
 | Do not implement new compose CRD in MVP | Sealed | Too high-risk for first demo |
 | Keep N shards x M replicas in roadmap | Sealed | Required for product-grade architecture |
 | First executable baseline is 1 shard x 2 replicas | Sealed | Runtime validation proved this topology is the first repeatable executable baseline. Multi-shard topologies remain in roadmap and Phase 02 |

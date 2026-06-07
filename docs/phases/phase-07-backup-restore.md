@@ -1,7 +1,7 @@
 # Phase 07: Backup and Restore Task Model
 
-- Version: 0.5
-- Date: 2026-06-02
+- Version: 0.6
+- Date: 2026-06-07
 - Status: Confirmed
 - Priority: P1
 - Owner: zqw
@@ -15,7 +15,7 @@
 
 ## 1. Purpose
 
-Design and validate a safe ClickHouse backup/restore task model for
+Implement and validate a safe ClickHouse backup/restore task model for
 productization and hackathon demo coverage.
 
 Backup and restore are required ClickHouse operations capabilities. This phase
@@ -26,8 +26,12 @@ Primary path:
 
 - Implement backup/restore through an explicitly approved Kubernetes task path,
   such as a `upm-api-server`-created Kubernetes `Job`.
+- Implement API-managed scheduled backup through a
+  `upm-api-server`-created Kubernetes `CronJob`.
 - The Job must use Kubernetes Secret references for ClickHouse credentials and
   backup storage credentials.
+- The CronJob must use the same SecretRef-only credential model and must create
+  timestamped backup paths.
 - Restore validation must restore into a validation database/table by default
   and must not overwrite business data.
 
@@ -50,16 +54,19 @@ In scope:
 5. Define backup task request/response model.
 6. Define restore task request/response model.
 7. Define task status read path from Kubernetes Job/Pod status and logs.
-8. Document source-code repair spike for `GrpcCall` if time permits.
+8. Define scheduled backup request/response model.
+9. Define scheduled backup status read path from Kubernetes CronJob, child Jobs,
+   and Pod logs.
+10. Document source-code repair spike for `GrpcCall` if time permits.
 
 ## 3. Non-Goals
 
 Out of scope unless explicitly approved:
 
 - Running destructive restore against production data.
-- Implementing backup scheduler.
 - Implementing backup retention cleanup.
 - Implementing full object storage lifecycle management.
+- Implementing a production backup policy engine.
 - Bypassing safety confirmation for restore.
 - Claiming GrpcCall support without runtime evidence.
 - Making `GrpcCall` repair the only backup/restore implementation path.
@@ -73,6 +80,7 @@ Out of scope unless explicitly approved:
 | Where do credentials live? | Kubernetes Secret or approved UPMIO secret mechanism |
 | How is restore protected? | Human approval flag, target validation, and explicit destructive warning |
 | What is the primary execution path if GrpcCall remains unsupported? | Kubernetes Job-based task path with evidence |
+| How is scheduled backup exposed? | API-created Kubernetes CronJob with SecretRef-only credentials |
 | Is GrpcCall used, repaired, or deferred? | Clear phase conclusion backed by runtime evidence |
 
 ## 5. Execution Path Decision
@@ -81,9 +89,15 @@ MVP / hackathon path:
 
 - `upm-api-server` creates a Kubernetes `Job` in the target namespace.
 - The Job runs a controlled ClickHouse backup/restore command.
+- `upm-api-server` creates Kubernetes `CronJob` resources for scheduled backup
+  in the target namespace.
+- Each scheduled backup run creates a child Job and uses a timestamped backup
+  path.
 - Credentials are injected through `secretRef` and never through plaintext
   request fields, ConfigMaps, logs, or reports.
 - Job status, Pod phase, exit code, and redacted logs form the task evidence.
+- CronJob status, recent child Jobs, Pod phase, exit code, and redacted logs
+  form the scheduled backup evidence.
 - `upm-api-server` returns structured task status and an evidence reference.
 
 Candidate implementations:
@@ -100,6 +114,11 @@ The first demo target should be a narrow backup/restore slice:
 - Back up the validation object.
 - Restore into a separate validation database/table.
 - Verify row count and, where feasible, checksum.
+- Create a scheduled backup through API using the same validation scope.
+- Wait for at least one scheduled child Job to complete.
+- Verify that the scheduled backup object can be used as restore input, or
+  record the exact storage/backend limitation if restore from that object is
+  blocked.
 
 Source-code repair spike:
 
@@ -110,7 +129,7 @@ Source-code repair spike:
 
 ## 6. Backup Model
 
-Candidate API:
+Required API:
 
 ```http
 POST /api/v1/clusters/{namespace}/{name}/backup
@@ -121,13 +140,13 @@ Candidate request:
 ```json
 {
   "scope": {
-    "database": "default",
+    "database": "upm_backup_validation",
     "table": "events"
   },
   "storage": {
     "type": "s3",
     "secretRef": "clickhouse-backup-secret",
-    "path": "backups/clickhouse-runtime/2026-05-27"
+    "path": "backups/clickhouse-phase03/manual-20260607"
   },
   "execution": {
     "type": "kubernetesJob"
@@ -146,7 +165,7 @@ MVP/P2 behavior:
 
 ## 7. Restore Model
 
-Candidate API:
+Required API:
 
 ```http
 POST /api/v1/clusters/{namespace}/{name}/restore
@@ -171,21 +190,128 @@ Required safety fields:
 
 Restore must require explicit confirmation and must avoid overwriting existing data unless a later phase defines a safe overwrite protocol.
 
-## 8. Files Likely Changed
+## 8. Task Status Model
 
-```text
-backend/internal/api/backup_handler.go
-backend/internal/model/backup.go
-backend/internal/upmio/grpccall.go
-backend/internal/k8s/job.go
-backend/internal/task/backup.go
-backend/internal/task/restore.go
-backend/internal/task/job_status.go
-docs/design/api-design.md
-docs/design/data-architecture.md
+Required API:
+
+```http
+GET /api/v1/clusters/{namespace}/{name}/tasks/{taskName}
 ```
 
-## 9. Acceptance Criteria
+The task status response must include:
+
+```json
+{
+  "name": "clickhouse-phase03-backup-20260607-001",
+  "namespace": "upm-clickhouse-phase03-runtime",
+  "cluster": "clickhouse-phase03",
+  "type": "backup",
+  "status": "Succeeded",
+  "message": "backup job completed",
+  "startTime": "...",
+  "completionTime": "...",
+  "jobRef": {
+    "namespace": "upm-clickhouse-phase03-runtime",
+    "name": "clickhouse-phase03-backup-20260607-001"
+  },
+  "podRef": {
+    "namespace": "upm-clickhouse-phase03-runtime",
+    "name": "clickhouse-phase03-backup-20260607-001-xxxxx"
+  },
+  "evidence": {
+    "backupPath": "backups/clickhouse-phase03/manual-20260607",
+    "logsRedacted": true
+  }
+}
+```
+
+Status values:
+
+- `Pending`
+- `Running`
+- `Succeeded`
+- `Failed`
+- `Unknown`
+
+## 9. Scheduled Backup Model
+
+Required APIs:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/clusters/{namespace}/{name}/backup-schedules` | Create an API-managed backup CronJob |
+| `GET` | `/api/v1/clusters/{namespace}/{name}/backup-schedules` | List backup schedules for a cluster |
+| `GET` | `/api/v1/clusters/{namespace}/{name}/backup-schedules/{scheduleName}` | Read one backup schedule and recent child Jobs |
+| `DELETE` | `/api/v1/clusters/{namespace}/{name}/backup-schedules/{scheduleName}` | Delete an API-managed backup schedule |
+
+Create request:
+
+```json
+{
+  "name": "validation-every-minute",
+  "schedule": "*/1 * * * *",
+  "timeZone": "Asia/Shanghai",
+  "scope": {
+    "database": "upm_backup_validation",
+    "table": "events"
+  },
+  "storage": {
+    "type": "s3",
+    "secretRef": "clickhouse-backup-secret",
+    "pathPrefix": "backups/clickhouse-phase03/scheduled"
+  },
+  "execution": {
+    "type": "kubernetesCronJob",
+    "concurrencyPolicy": "Forbid",
+    "successfulJobsHistoryLimit": 1,
+    "failedJobsHistoryLimit": 1
+  },
+  "suspend": false
+}
+```
+
+Rules:
+
+- `name` must be a DNS-safe stable schedule name.
+- `schedule` must be a Kubernetes CronJob-compatible cron expression.
+- `timeZone` is optional; if omitted, Kubernetes CronJob default behavior is
+  used.
+- `pathPrefix` is not a full object path. Each run must append a timestamp or
+  Job UID to avoid overwriting previous backups.
+- Default `concurrencyPolicy` is `Forbid`.
+- Default `successfulJobsHistoryLimit` and `failedJobsHistoryLimit` are `1`.
+- The API may expose `suspend`, but retention cleanup is still out of scope.
+- The schedule must be labeled as owned by `upm-api-server` and the target
+  ClickHouse cluster so it can be listed without owning unrelated CronJobs.
+
+Scheduled backup validation must prove:
+
+- the API creates a Kubernetes CronJob;
+- the CronJob creates at least one child Job;
+- the child Job completes successfully;
+- the child Job output contains no plaintext Secret value;
+- task status can be read through the API.
+
+## 10. Files Likely Changed
+
+```text
+api-server/internal/api/server.go
+api-server/internal/api/server_test.go
+api-server/internal/model/backup.go
+api-server/internal/model/backup_test.go
+api-server/internal/kube/backup.go
+api-server/internal/kube/backup_test.go
+api-server/internal/kube/store.go
+api-server/internal/platform/store.go
+clickhouse/phase-03/manifests/upm-api-server.yaml
+clickhouse/phase-07/README.md
+clickhouse/phase-07/scripts/validate-backup-restore-runtime.sh
+docs/design/api-design.md
+docs/design/data-architecture.md
+docs/api/upm-api-server-v1.md
+```
+
+## 11. Acceptance Criteria
 
 1. Phase verifies or rejects ClickHouse GrpcCall runtime support with command evidence.
 2. Kubernetes Job execution path is defined and used when GrpcCall remains unsupported.
@@ -197,9 +323,13 @@ docs/design/data-architecture.md
 8. Demo restore writes only to validation database/table unless explicitly approved otherwise.
 9. Restored validation data is verified by row count and, where feasible, checksum.
 10. Task status model includes result, message, startTime, completionTime, Kubernetes Job reference, and evidence reference.
-11. No backup or restore result is claimed without actual command evidence.
+11. Scheduled backup API creates a Kubernetes CronJob with SecretRef-only credentials.
+12. Scheduled backup CronJob creates at least one child Job during runtime validation.
+13. Scheduled backup status API returns CronJob status and recent child Job status.
+14. Deleting a schedule through API deletes the API-managed CronJob and does not delete backup objects.
+15. No backup, restore, or scheduled backup result is claimed without actual command evidence.
 
-## 10. Verification Commands
+## 12. Verification Commands
 
 ```bash
 # Verify CRD accepts GrpcCall
@@ -207,42 +337,55 @@ kubectl get crd grpccalls.upm.syntropycloud.io
 
 # Apply logical backup runtime manifest only in validation namespace
 kubectl apply -f docs/runtime/manifests/clickhouse-logical-backup-runtime.yaml
-kubectl get grpccall -n upm-clickhouse-runtime clickhouse-logical-backup-runtime -o yaml
-kubectl describe grpccall -n upm-clickhouse-runtime clickhouse-logical-backup-runtime
+kubectl get grpccall -n upm-clickhouse-phase03-runtime clickhouse-logical-backup-runtime -o yaml
+kubectl describe grpccall -n upm-clickhouse-phase03-runtime clickhouse-logical-backup-runtime
 
 # Operator logs
 kubectl logs -n upm-system deploy/unit-operator --tail=200
 
 # Unit-agent logs
-kubectl logs -n upm-clickhouse-runtime <clickhouse-pod> -c unit-agent --tail=200
+kubectl logs -n upm-clickhouse-phase03-runtime <clickhouse-pod> -c unit-agent --tail=200
 
-# Kubernetes Job-based backup/restore path
-kubectl get job -n upm-clickhouse-runtime -l app.kubernetes.io/component=clickhouse-backup
-kubectl describe job -n upm-clickhouse-runtime <backup-job>
-kubectl logs -n upm-clickhouse-runtime job/<backup-job> --tail=200
-kubectl get job -n upm-clickhouse-runtime -l app.kubernetes.io/component=clickhouse-restore
-kubectl describe job -n upm-clickhouse-runtime <restore-job>
-kubectl logs -n upm-clickhouse-runtime job/<restore-job> --tail=200
+# API-driven backup/restore/scheduled backup path
+export UPM_API_SERVER_URL=http://192.168.35.201:30083
+clickhouse/phase-07/scripts/validate-backup-restore-runtime.sh
+
+# Kubernetes Job/CronJob evidence
+kubectl get job -n upm-clickhouse-phase03-runtime -l app.kubernetes.io/component=clickhouse-backup
+kubectl describe job -n upm-clickhouse-phase03-runtime <backup-job>
+kubectl logs -n upm-clickhouse-phase03-runtime job/<backup-job> --tail=200
+kubectl get job -n upm-clickhouse-phase03-runtime -l app.kubernetes.io/component=clickhouse-restore
+kubectl describe job -n upm-clickhouse-phase03-runtime <restore-job>
+kubectl logs -n upm-clickhouse-phase03-runtime job/<restore-job> --tail=200
+kubectl get cronjob -n upm-clickhouse-phase03-runtime -l app.kubernetes.io/component=clickhouse-backup-schedule
 
 # Validation query after restore
-kubectl exec -n upm-clickhouse-runtime <clickhouse-pod> -c clickhouse -- \
+kubectl exec -n upm-clickhouse-phase03-runtime <clickhouse-pod> -c clickhouse -- \
   clickhouse-client --query "SELECT count() FROM restore_validation.events_restored"
 ```
 
 If restore is not executed, record the reason explicitly.
 
-## 11. Risks and Open Questions
+Expected final script output:
+
+```text
+PASS phase07_backup_restore_runtime_validation
+```
+
+## 13. Risks and Open Questions
 
 | Risk / Question | Handling |
 |---|---|
 | Current operator image rejects clickhouse GrpcCall | Use Kubernetes Job path for MVP; keep GrpcCall repair as timeboxed spike |
 | Job path bypasses UPMIO task model expectations | Keep it `upm-api-server`-created, namespace-scoped, SecretRef-based, and documented as approved alternative task path |
 | Restore is destructive | Require human approval and validation target |
-| Object storage unavailable | Use documented skip or local test backend only |
+| Object storage unavailable | Prepare MinIO/S3 validation backend or record backend limitation with evidence |
 | Credential leakage | Use Secret refs and redaction only |
 | Native BACKUP/RESTORE storage backend constraints | Use an approved backup utility container or record backend limitation with evidence |
+| CronJob creates repeated backups | Use validation scope, timestamped paths, short validation schedule, and delete schedule through API after validation |
+| Scheduled backup without retention cleanup | Accepted MVP limitation; no backup object deletion in Phase 07 |
 
-## 12. Changelog
+## 14. Changelog
 
 | Version | Date | Changes |
 |---|---|---|
@@ -251,3 +394,4 @@ If restore is not executed, record the reason explicitly.
 | 0.3 | 2026-05-27 | Added metadata and red-team fix structure |
 | 0.4 | 2026-05-27 | Restored GrpcCall runtime gate, backup/restore models, safety criteria, and verification commands |
 | 0.5 | 2026-06-02 | Added Kubernetes Job backup/restore primary path and moved GrpcCall repair to a verified secondary spike |
+| 0.6 | 2026-06-07 | Added owner-required API-managed scheduled backup through Kubernetes CronJob, updated current `api-server` paths, and aligned validation namespace |
