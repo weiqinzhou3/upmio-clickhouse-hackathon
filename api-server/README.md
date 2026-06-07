@@ -28,7 +28,7 @@ Build and synchronize the image to all lab nodes:
 
 ```bash
 SSH_PASSWORD=<node-password> \
-  clickhouse/sync-upm-api-server-image-to-nodes.sh
+  clickhouse/scripts/sync-upm-api-server-image-to-nodes.sh
 ```
 
 Deploy:
@@ -41,7 +41,7 @@ kubectl -n upm-system rollout status deploy/upm-api-server --timeout=180s
 Runtime acceptance:
 
 ```bash
-clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
+clickhouse/scripts/validate-phase03-upm-api-server-runtime.sh
 ```
 
 The supported API reference is maintained in

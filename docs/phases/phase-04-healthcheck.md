@@ -237,7 +237,7 @@ api-server/internal/clickhouse/healthcheck_test.go
 docs/api/upm-api-server-v1.md
 docs/design/data-architecture.md
 clickhouse/phase-04/README.md
-clickhouse/phase-04/scripts/validate-healthcheck-runtime.sh
+clickhouse/scripts/validate-phase04-healthcheck-runtime.sh
 ```
 
 ## 9. Acceptance Criteria
@@ -283,7 +283,7 @@ GOCACHE=/tmp/upm-go-cache go build ./...
 
 # Build/sync image and deploy updated API server
 cd ..
-SSH_PASSWORD=<node-password> clickhouse/sync-upm-api-server-image-to-nodes.sh
+SSH_PASSWORD=<node-password> clickhouse/scripts/sync-upm-api-server-image-to-nodes.sh
 kubectl apply -f clickhouse/phase-03/manifests/upm-api-server.yaml
 kubectl -n upm-system rollout status deploy/upm-api-server --timeout=180s
 
@@ -304,7 +304,7 @@ curl -fsS -X POST \
   | jq '.status, .summary, [.checks[].name]'
 
 # Full Phase 04 runtime gate
-clickhouse/phase-04/scripts/validate-healthcheck-runtime.sh
+clickhouse/scripts/validate-phase04-healthcheck-runtime.sh
 ```
 
 Direct evidence commands used by healthcheck:

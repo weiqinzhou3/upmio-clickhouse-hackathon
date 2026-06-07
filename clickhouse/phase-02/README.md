@@ -69,16 +69,16 @@ helm template ch-2s3r upm-packages/clickhouse/26.3.9.8/charts \
 helm template ch-4s2r upm-packages/clickhouse/26.3.9.8/charts \
   --values clickhouse/phase-02/values/4s2r-values.yaml >/tmp/ch-4s2r.yaml
 
-python3 clickhouse/phase-02/scripts/validate-rendered-topology.py \
+python3 clickhouse/scripts/validate-phase02-rendered-topology.py \
   --rendered /tmp/ch-1s2r.yaml --shards 1 --replicas-per-shard 2
 
-python3 clickhouse/phase-02/scripts/validate-rendered-topology.py \
+python3 clickhouse/scripts/validate-phase02-rendered-topology.py \
   --rendered /tmp/ch-2s2r.yaml --shards 2 --replicas-per-shard 2
 
-python3 clickhouse/phase-02/scripts/validate-rendered-topology.py \
+python3 clickhouse/scripts/validate-phase02-rendered-topology.py \
   --rendered /tmp/ch-2s3r.yaml --shards 2 --replicas-per-shard 3
 
-python3 clickhouse/phase-02/scripts/validate-rendered-topology.py \
+python3 clickhouse/scripts/validate-phase02-rendered-topology.py \
   --rendered /tmp/ch-4s2r.yaml --shards 4 --replicas-per-shard 2
 ```
 
@@ -105,7 +105,7 @@ creating or recreating ClickHouse Server Pods:
 
 ```bash
 SSH_PASSWORD=<node-password> \
-  clickhouse/sync-runtime-image-to-nodes.sh
+  clickhouse/scripts/sync-runtime-image-to-nodes.sh
 ```
 
 This is a reproducible lab-cluster step. A production deployment should publish
@@ -154,7 +154,7 @@ Expected result: 4 rows, representing 2 shards x 2 replicas.
 Full runtime validation:
 
 ```bash
-clickhouse/phase-02/scripts/validate-runtime-2s2r.sh
+clickhouse/scripts/validate-phase02-runtime-2s2r.sh
 ```
 
 Expected final line:

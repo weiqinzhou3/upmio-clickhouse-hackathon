@@ -14,7 +14,7 @@ go test ./...
 go test -race ./...
 go vet ./...
 go build ./...
-SSH_PASSWORD=root ./clickhouse/sync-upm-api-server-image-to-nodes.sh
+SSH_PASSWORD=root ./clickhouse/scripts/sync-upm-api-server-image-to-nodes.sh
 kubectl apply -f clickhouse/phase-03/manifests/upm-api-server.yaml
 kubectl rollout restart deploy/upm-api-server -n upm-system
 kubectl rollout status deploy/upm-api-server -n upm-system --timeout=180s
@@ -24,12 +24,12 @@ kubectl auth can-i create pods --subresource=exec \
   --as-group=system:serviceaccounts \
   --as-group=system:serviceaccounts:upm-system \
   --as-group=system:authenticated
-clickhouse/phase-04/scripts/validate-healthcheck-runtime.sh
+clickhouse/scripts/validate-phase04-healthcheck-runtime.sh
 ```
 
 ## Result
 
-`clickhouse/phase-04/scripts/validate-healthcheck-runtime.sh` completed with:
+`clickhouse/scripts/validate-phase04-healthcheck-runtime.sh` completed with:
 
 ```text
 PASS phase04_healthcheck_runtime_validation

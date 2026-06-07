@@ -12,7 +12,7 @@ Current lab target:
 ## Deploy Updated API Server
 
 ```bash
-SSH_PASSWORD=root ./clickhouse/sync-upm-api-server-image-to-nodes.sh
+SSH_PASSWORD=root ./clickhouse/scripts/sync-upm-api-server-image-to-nodes.sh
 kubectl apply -f clickhouse/phase-03/manifests/upm-api-server.yaml
 kubectl rollout status deploy/upm-api-server -n upm-system --timeout=180s
 kubectl get svc upm-api-server -n upm-system -o wide
@@ -27,7 +27,7 @@ Expected state:
 ## Run Real Runtime Validation
 
 ```bash
-clickhouse/phase-04/scripts/validate-healthcheck-runtime.sh
+clickhouse/scripts/validate-phase04-healthcheck-runtime.sh
 ```
 
 Expected final output:

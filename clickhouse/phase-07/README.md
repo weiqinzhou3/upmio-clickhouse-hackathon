@@ -14,7 +14,7 @@ Cluster:    clickhouse-phase03
 ## Validation
 
 ```bash
-clickhouse/phase-07/scripts/validate-backup-restore-runtime.sh
+clickhouse/scripts/validate-phase07-backup-restore-runtime.sh
 ```
 
 Expected final line:

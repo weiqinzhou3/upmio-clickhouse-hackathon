@@ -45,12 +45,12 @@ go vet ./...
 go build ./...
 cd ..
 
-SSH_PASSWORD=root ./clickhouse/sync-upm-api-server-image-to-nodes.sh
+SSH_PASSWORD=root ./clickhouse/scripts/sync-upm-api-server-image-to-nodes.sh
 kubectl apply -f clickhouse/phase-03/manifests/upm-api-server.yaml
 kubectl rollout restart deploy/upm-api-server -n upm-system
 kubectl rollout status deploy/upm-api-server -n upm-system --timeout=180s
 
-clickhouse/phase-05/scripts/validate-monitoring-runtime.sh
+clickhouse/scripts/validate-phase05-monitoring-runtime.sh
 ```
 
 ## Full Chain Result

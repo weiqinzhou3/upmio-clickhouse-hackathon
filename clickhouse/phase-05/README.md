@@ -25,7 +25,7 @@ The lab Grafana credential is `admin/admin`.
 ## Deploy Updated API Server
 
 ```bash
-SSH_PASSWORD=root ./clickhouse/sync-upm-api-server-image-to-nodes.sh
+SSH_PASSWORD=root ./clickhouse/scripts/sync-upm-api-server-image-to-nodes.sh
 kubectl apply -f clickhouse/phase-03/manifests/upm-api-server.yaml
 kubectl rollout restart deploy/upm-api-server -n upm-system
 kubectl rollout status deploy/upm-api-server -n upm-system --timeout=180s
@@ -34,7 +34,7 @@ kubectl rollout status deploy/upm-api-server -n upm-system --timeout=180s
 ## Run Real Runtime Validation
 
 ```bash
-clickhouse/phase-05/scripts/validate-monitoring-runtime.sh
+clickhouse/scripts/validate-phase05-monitoring-runtime.sh
 ```
 
 Expected final output:

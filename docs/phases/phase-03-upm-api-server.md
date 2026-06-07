@@ -301,7 +301,7 @@ curl -sS http://127.0.0.1:18083/api/v1/clusters | jq .
 curl -sS http://127.0.0.1:18083/api/v1/clusters/upm-clickhouse-runtime/clickhouse-runtime/resources | jq .
 
 # Full runtime acceptance
-clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
+clickhouse/scripts/validate-phase03-upm-api-server-runtime.sh
 ```
 
 ## 12. Risks and Open Questions

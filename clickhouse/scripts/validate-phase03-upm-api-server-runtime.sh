@@ -25,7 +25,7 @@ CREATE_STORAGE_CLASS="${CREATE_STORAGE_CLASS:-local-path}"
 CREATE_SERVER_SIZE="${CREATE_SERVER_SIZE:-20Gi}"
 CREATE_KEEPER_SIZE="${CREATE_KEEPER_SIZE:-10Gi}"
 CREATE_ADMIN_SECRET="${CREATE_ADMIN_SECRET:-clickhouse-phase03-secret}"
-DB_RUNTIME_VALIDATOR="${DB_RUNTIME_VALIDATOR:-clickhouse/phase-02/scripts/validate-runtime-2s2r.sh}"
+DB_RUNTIME_VALIDATOR="${DB_RUNTIME_VALIDATOR:-clickhouse/scripts/validate-phase02-runtime-2s2r.sh}"
 
 port_forward_pid=""
 tmpdir=""

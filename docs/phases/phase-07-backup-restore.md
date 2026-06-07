@@ -310,7 +310,7 @@ api-server/internal/kube/store.go
 api-server/internal/platform/store.go
 clickhouse/phase-03/manifests/upm-api-server.yaml
 clickhouse/phase-07/README.md
-clickhouse/phase-07/scripts/validate-backup-restore-runtime.sh
+clickhouse/scripts/validate-phase07-backup-restore-runtime.sh
 docs/design/api-design.md
 docs/design/data-architecture.md
 docs/api/upm-api-server-v1.md
@@ -353,7 +353,7 @@ kubectl logs -n upm-clickhouse-phase03-runtime <clickhouse-pod> -c unit-agent --
 
 # API-driven backup/restore/scheduled backup path
 export UPM_API_SERVER_URL=http://192.168.35.201:30083
-clickhouse/phase-07/scripts/validate-backup-restore-runtime.sh
+clickhouse/scripts/validate-phase07-backup-restore-runtime.sh
 
 # Kubernetes Job/CronJob evidence
 kubectl get job -n upm-clickhouse-phase03-runtime -l app.kubernetes.io/component=clickhouse-backup

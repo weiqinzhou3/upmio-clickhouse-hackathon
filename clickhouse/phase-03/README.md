@@ -80,7 +80,7 @@ CLICKHOUSE_UNITSET=clickhouse-phase03 \
 KEEPER_UNITSET=clickhouse-phase03-keeper \
 POD=clickhouse-phase03-0 \
 DB=phase03_manual_acceptance \
-  clickhouse/phase-02/scripts/validate-runtime-2s2r.sh
+  clickhouse/scripts/validate-phase02-runtime-2s2r.sh
 ```
 
 Expected final line:
@@ -94,7 +94,7 @@ PASS runtime_2s2r_validation
 Use this script after `upm-api-server` is implemented:
 
 ```bash
-clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
+clickhouse/scripts/validate-phase03-upm-api-server-runtime.sh
 ```
 
 The script validates a real Kubernetes/UPMIO environment:
@@ -135,7 +135,7 @@ API_SERVER_NS=upm-system \
 API_SERVER_SERVICE=upm-api-server \
 API_SERVER_LOCAL_PORT=18083 \
 API_SERVER_SERVICE_PORT=8080 \
-  clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
+  clickhouse/scripts/validate-phase03-upm-api-server-runtime.sh
 ```
 
 Supported script environment variables:
@@ -159,7 +159,7 @@ After `POST /api/v1/clusters` is implemented, run the same script with:
 
 ```bash
 PHASE03_CREATE_E2E=1 \
-  clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
+  clickhouse/scripts/validate-phase03-upm-api-server-runtime.sh
 ```
 
 This mode creates a reserved test namespace/cluster through `upm-api-server`
@@ -189,7 +189,7 @@ To repeat the create E2E from a clean reserved validation namespace:
 ```bash
 PHASE03_CREATE_E2E=1 \
 PHASE03_CREATE_E2E_RESET=1 \
-  clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
+  clickhouse/scripts/validate-phase03-upm-api-server-runtime.sh
 ```
 
 `PHASE03_CREATE_E2E_RESET=1` deletes only the reserved `CREATE_NS` namespace

@@ -18,7 +18,7 @@ This directory contains the hackathon-facing Phase 01 evidence assets.
 - `manifests/03-clickhouse-unitset.yaml`: 2-replica ClickHouse UnitSet with Secret/env/log/PodMonitor settings.
 - `values/*.yaml`: Helm values used for package rendering validation.
 - `modified-files/`: symlinks to modified upstream package source files.
-- `scripts/validate-runtime.sh`: read-only runtime acceptance command set.
+- `../scripts/validate-phase01-runtime.sh`: read-only runtime acceptance command set.
 
 ## Static Validation
 
@@ -93,7 +93,7 @@ Run the read-only acceptance script on the Kubernetes master or any host with a
 working kubeconfig:
 
 ```bash
-bash clickhouse/phase-01/scripts/validate-runtime.sh
+bash clickhouse/scripts/validate-phase01-runtime.sh
 ```
 
 Expected final line:

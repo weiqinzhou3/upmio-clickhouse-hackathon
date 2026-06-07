@@ -13,7 +13,7 @@ Cluster:    clickhouse-phase03
 ## Validation
 
 ```bash
-clickhouse/phase-06/scripts/validate-diagnostics-runtime.sh
+clickhouse/scripts/validate-phase06-diagnostics-runtime.sh
 ```
 
 Expected final line:

@@ -213,7 +213,7 @@ api-server/internal/model/metrics.go
 api-server/internal/platform/store.go
 api-server/internal/kube/store.go
 clickhouse/phase-03/manifests/upm-api-server.yaml
-clickhouse/phase-05/scripts/validate-monitoring-runtime.sh
+clickhouse/scripts/validate-phase05-monitoring-runtime.sh
 clickhouse/phase-05/runtime-validation.md
 docs/design/monitoring-design.md
 docs/api/upm-api-server-v1.md
@@ -272,7 +272,7 @@ curl -sS http://192.168.35.201:30083/api/v1/clusters/upm-clickhouse-phase03-runt
 curl -sS -u admin:admin http://192.168.35.201:30300/api/health | jq .
 
 # Full real-environment acceptance
-clickhouse/phase-05/scripts/validate-monitoring-runtime.sh
+clickhouse/scripts/validate-phase05-monitoring-runtime.sh
 ```
 
 ## 11. Risks and Open Questions

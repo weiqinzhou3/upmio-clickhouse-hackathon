@@ -77,7 +77,7 @@ by creating raw Pods.
 The default real-environment validation passed:
 
 ```text
-clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
+clickhouse/scripts/validate-phase03-upm-api-server-runtime.sh
 PASS upm_api_server_runtime_validation
 ```
 
@@ -104,7 +104,7 @@ new cluster through `POST /api/v1/clusters`:
 ```bash
 PHASE03_CREATE_E2E=1 \
 PHASE03_CREATE_E2E_RESET=1 \
-  clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
+  clickhouse/scripts/validate-phase03-upm-api-server-runtime.sh
 ```
 
 Created target:
@@ -168,10 +168,10 @@ go test -race ./...
 go vet ./...
 go build ./...
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/upm-api-server
-bash -n clickhouse/sync-upm-api-server-image-to-nodes.sh
-bash -n clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
-shellcheck clickhouse/sync-upm-api-server-image-to-nodes.sh
-shellcheck clickhouse/phase-03/scripts/validate-upm-api-server-runtime.sh
+bash -n clickhouse/scripts/sync-upm-api-server-image-to-nodes.sh
+bash -n clickhouse/scripts/validate-phase03-upm-api-server-runtime.sh
+shellcheck clickhouse/scripts/sync-upm-api-server-image-to-nodes.sh
+shellcheck clickhouse/scripts/validate-phase03-upm-api-server-runtime.sh
 yq eval-all 'true' clickhouse/phase-03/manifests/upm-api-server.yaml
 markdownlint "docs/**/*.md" "clickhouse/**/*.md" "api-server/**/*.md"
 gitleaks detect --source . --redact --no-git

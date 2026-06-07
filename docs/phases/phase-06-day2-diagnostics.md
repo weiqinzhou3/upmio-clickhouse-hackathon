@@ -209,7 +209,7 @@ api-server/internal/platform/store.go
 api-server/cmd/upm-api-server/main.go
 clickhouse/phase-03/manifests/upm-api-server.yaml
 clickhouse/phase-06/README.md
-clickhouse/phase-06/scripts/validate-diagnostics-runtime.sh
+clickhouse/scripts/validate-phase06-diagnostics-runtime.sh
 docs/api/upm-api-server-v1.md
 docs/design/day2-diagnostics-design.md
 ```
@@ -265,7 +265,7 @@ cd api-server
 go test ./...
 
 # Full runtime gate
-clickhouse/phase-06/scripts/validate-diagnostics-runtime.sh
+clickhouse/scripts/validate-phase06-diagnostics-runtime.sh
 ```
 
 ## 12. Risks and Open Questions

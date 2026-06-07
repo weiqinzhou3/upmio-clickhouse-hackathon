@@ -283,7 +283,7 @@ clickhouse/phase-02/values/1s2r-values.yaml
 clickhouse/phase-02/values/2s2r-values.yaml
 clickhouse/phase-02/values/2s3r-values.yaml
 clickhouse/phase-02/values/4s2r-values.yaml
-clickhouse/phase-02/scripts/validate-rendered-topology.py
+clickhouse/scripts/validate-phase02-rendered-topology.py
 docs/design/upm-packages-clickhouse-design.md
 docs/architecture/clickhouse-ha-architecture.md
 docs/design/api-design.md
@@ -317,10 +317,10 @@ helm template ch-2s3r upm-packages/clickhouse/26.3.9.8/charts --values clickhous
 helm template ch-4s2r upm-packages/clickhouse/26.3.9.8/charts --values clickhouse/phase-02/values/4s2r-values.yaml >/tmp/ch-4s2r.yaml
 
 # Static topology checks
-python3 clickhouse/phase-02/scripts/validate-rendered-topology.py --rendered /tmp/ch-1s2r.yaml --shards 1 --replicas-per-shard 2
-python3 clickhouse/phase-02/scripts/validate-rendered-topology.py --rendered /tmp/ch-2s2r.yaml --shards 2 --replicas-per-shard 2
-python3 clickhouse/phase-02/scripts/validate-rendered-topology.py --rendered /tmp/ch-2s3r.yaml --shards 2 --replicas-per-shard 3
-python3 clickhouse/phase-02/scripts/validate-rendered-topology.py --rendered /tmp/ch-4s2r.yaml --shards 4 --replicas-per-shard 2
+python3 clickhouse/scripts/validate-phase02-rendered-topology.py --rendered /tmp/ch-1s2r.yaml --shards 1 --replicas-per-shard 2
+python3 clickhouse/scripts/validate-phase02-rendered-topology.py --rendered /tmp/ch-2s2r.yaml --shards 2 --replicas-per-shard 2
+python3 clickhouse/scripts/validate-phase02-rendered-topology.py --rendered /tmp/ch-2s3r.yaml --shards 2 --replicas-per-shard 3
+python3 clickhouse/scripts/validate-phase02-rendered-topology.py --rendered /tmp/ch-4s2r.yaml --shards 4 --replicas-per-shard 2
 
 # Kubernetes dry-run for rendered resources
 kubectl apply --dry-run=server -f /tmp/ch-2s2r.yaml
@@ -332,7 +332,7 @@ Runtime 2x2 acceptance, when claimed, must additionally validate:
 
 ```bash
 SSH_PASSWORD=<node-password> \
-  clickhouse/sync-runtime-image-to-nodes.sh
+  clickhouse/scripts/sync-runtime-image-to-nodes.sh
 
 kubectl apply -f clickhouse/phase-02/manifests/00-namespace-project.yaml
 kubectl apply -f clickhouse/phase-02/manifests/02-clickhouse-keeper-unitset.yaml
@@ -352,7 +352,7 @@ kubectl exec -n upm-clickhouse-phase02-runtime clickhouse-phase02-0 \
   -c clickhouse -- service-ctl.sh login --query \
   "SELECT cluster, shard_num, replica_num, host_name FROM system.clusters WHERE cluster='upm_cluster' ORDER BY shard_num, replica_num"
 
-clickhouse/phase-02/scripts/validate-runtime-2s2r.sh
+clickhouse/scripts/validate-phase02-runtime-2s2r.sh
 ```
 
 Expected runtime evidence:
