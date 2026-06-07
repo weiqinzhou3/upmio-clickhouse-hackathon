@@ -6,6 +6,7 @@ This directory contains the user-facing manuals for the completed hackathon MVP.
 
 | Document | Purpose |
 |---|---|
+| [Project Summary](project-summary.md) | Current progress, supported functions, and post-MVP plan |
 | [API Manual](api-manual.md) | Quick operational guide for `upm-api-server` APIs |
 | [Deployment Manual](deployment-manual.md) | Environment setup for Kubernetes, UPMIO, `upm-api-server`, and kube-prometheus-stack |
 | [Scripts Manual](scripts-manual.md) | Centralized script inventory and usage guide |
