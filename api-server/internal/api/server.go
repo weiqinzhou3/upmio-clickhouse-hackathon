@@ -51,6 +51,13 @@ func NewServer(store platform.Store, logger *slog.Logger, timeout time.Duration)
 	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/healthcheck/latest", server.getLatestHealthcheck)
 	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/metrics/summary", server.getMetricsSummary)
 	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/diagnostics", server.runDiagnostics)
+	mux.HandleFunc("POST /api/v1/clusters/{namespace}/{name}/backup", server.createBackup)
+	mux.HandleFunc("POST /api/v1/clusters/{namespace}/{name}/restore", server.createRestore)
+	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/tasks/{taskName}", server.getTask)
+	mux.HandleFunc("POST /api/v1/clusters/{namespace}/{name}/backup-schedules", server.createBackupSchedule)
+	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/backup-schedules", server.listBackupSchedules)
+	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/backup-schedules/{scheduleName}", server.getBackupSchedule)
+	mux.HandleFunc("DELETE /api/v1/clusters/{namespace}/{name}/backup-schedules/{scheduleName}", server.deleteBackupSchedule)
 	return server.middleware(mux)
 }
 
@@ -253,6 +260,176 @@ func (s *Server) runDiagnostics(w http.ResponseWriter, r *http.Request) {
 	}
 	report.RequestID = requestID(r.Context())
 	writeJSON(w, http.StatusOK, report)
+}
+
+func (s *Server) createBackup(w http.ResponseWriter, r *http.Request) {
+	namespace, name := r.PathValue("namespace"), r.PathValue("name")
+	if err := model.ValidateClusterIdentity(namespace, name); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	var request model.BackupRequest
+	if !s.decodeJSON(w, r, &request) {
+		return
+	}
+	request = request.WithDefaults(name)
+	if err := request.Validate(); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	status, err := s.store.CreateBackup(r.Context(), namespace, name, request)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	status.RequestID = requestID(r.Context())
+	writeJSON(w, http.StatusAccepted, status)
+}
+
+func (s *Server) createRestore(w http.ResponseWriter, r *http.Request) {
+	namespace, name := r.PathValue("namespace"), r.PathValue("name")
+	if err := model.ValidateClusterIdentity(namespace, name); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	var request model.RestoreRequest
+	if !s.decodeJSON(w, r, &request) {
+		return
+	}
+	request = request.WithDefaults()
+	if err := request.Validate(); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	status, err := s.store.CreateRestore(r.Context(), namespace, name, request)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	status.RequestID = requestID(r.Context())
+	writeJSON(w, http.StatusAccepted, status)
+}
+
+func (s *Server) getTask(w http.ResponseWriter, r *http.Request) {
+	namespace, name := r.PathValue("namespace"), r.PathValue("name")
+	if err := model.ValidateClusterIdentity(namespace, name); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	taskName := r.PathValue("taskName")
+	if err := model.ValidateDNSLabel("taskName", taskName); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	status, err := s.store.GetTask(r.Context(), namespace, name, taskName)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	status.RequestID = requestID(r.Context())
+	writeJSON(w, http.StatusOK, status)
+}
+
+func (s *Server) createBackupSchedule(w http.ResponseWriter, r *http.Request) {
+	namespace, name := r.PathValue("namespace"), r.PathValue("name")
+	if err := model.ValidateClusterIdentity(namespace, name); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	var request model.BackupScheduleRequest
+	if !s.decodeJSON(w, r, &request) {
+		return
+	}
+	request = request.WithDefaults()
+	if err := request.Validate(); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	status, err := s.store.CreateBackupSchedule(r.Context(), namespace, name, request)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	status.RequestID = requestID(r.Context())
+	writeJSON(w, http.StatusAccepted, status)
+}
+
+func (s *Server) listBackupSchedules(w http.ResponseWriter, r *http.Request) {
+	namespace, name := r.PathValue("namespace"), r.PathValue("name")
+	if err := model.ValidateClusterIdentity(namespace, name); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	items, err := s.store.ListBackupSchedules(r.Context(), namespace, name)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	if items == nil {
+		items = []model.BackupScheduleStatus{}
+	}
+	writeJSON(w, http.StatusOK, model.BackupScheduleList{Items: items})
+}
+
+func (s *Server) getBackupSchedule(w http.ResponseWriter, r *http.Request) {
+	namespace, name := r.PathValue("namespace"), r.PathValue("name")
+	if err := model.ValidateClusterIdentity(namespace, name); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	scheduleName := r.PathValue("scheduleName")
+	if err := model.ValidateDNSLabel("scheduleName", scheduleName); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	status, err := s.store.GetBackupSchedule(r.Context(), namespace, name, scheduleName)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	status.RequestID = requestID(r.Context())
+	writeJSON(w, http.StatusOK, status)
+}
+
+func (s *Server) deleteBackupSchedule(w http.ResponseWriter, r *http.Request) {
+	namespace, name := r.PathValue("namespace"), r.PathValue("name")
+	if err := model.ValidateClusterIdentity(namespace, name); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	scheduleName := r.PathValue("scheduleName")
+	if err := model.ValidateDNSLabel("scheduleName", scheduleName); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	if err := s.store.DeleteBackupSchedule(r.Context(), namespace, name, scheduleName); err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		s.writeError(w, r, &model.APIError{
+			Status:  http.StatusBadRequest,
+			Code:    "INVALID_JSON",
+			Message: "request body must be valid JSON",
+			Err:     err,
+		})
+		return false
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		s.writeError(w, r, &model.APIError{
+			Status:  http.StatusBadRequest,
+			Code:    "INVALID_JSON",
+			Message: "request body must contain one JSON object",
+		})
+		return false
+	}
+	return true
 }
 
 func diagnosticsFilterFromQuery(r *http.Request) (model.DiagnosticsFilter, error) {

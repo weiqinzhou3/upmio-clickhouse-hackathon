@@ -1,0 +1,48 @@
+{
+  "items": [
+    {
+      "name": "validation-every-minute",
+      "namespace": "upm-clickhouse-phase03-runtime",
+      "cluster": "clickhouse-phase03",
+      "schedule": "*/1 * * * *",
+      "timeZone": "Asia/Shanghai",
+      "suspend": false,
+      "activeJobs": [],
+      "lastScheduleTime": "2026-06-07T11:59:00Z",
+      "lastSuccessfulTime": "2026-06-07T11:59:03Z",
+      "recentJobs": [
+        {
+          "name": "clickhouse-phase03-backup-validation-every-minute-29680559",
+          "namespace": "upm-clickhouse-phase03-runtime",
+          "cluster": "clickhouse-phase03",
+          "type": "backup",
+          "status": "Succeeded",
+          "message": "Reached expected number of succeeded pods",
+          "startTime": "2026-06-07T11:59:00Z",
+          "completionTime": "2026-06-07T11:59:03Z",
+          "jobRef": {
+            "namespace": "upm-clickhouse-phase03-runtime",
+            "name": "clickhouse-phase03-backup-validation-every-minute-29680559"
+          },
+          "podRef": {
+            "namespace": "upm-clickhouse-phase03-runtime",
+            "name": "clickhouse-phase03-backup-validation-every-minute-296805592kb9t"
+          },
+          "evidence": {
+            "backupPath": "",
+            "backupPathPrefix": "backups/clickhouse-phase03/scheduled",
+            "logTail": "[2026-06-07T11:59:00Z] starting backup path=backups/clickhouse-phase03/scheduled/20260607T115900Z-clickhouse-phase03-backup-validation-every-minute-296805592kb9t\n139afaf5-9c43-493d-91ee-f72f453047c2\tBACKUP_CREATED\n[2026-06-07T11:59:01Z] backup completed path=backups/clickhouse-phase03/scheduled/20260607T115900Z-clickhouse-phase03-backup-validation-every-minute-296805592kb9t",
+            "logsRedacted": true,
+            "source": "upm_backup_validation.events",
+            "storageSecretRef": "clickhouse-backup-secret",
+            "target": ""
+          }
+        }
+      ],
+      "storageSecretRef": "clickhouse-backup-secret",
+      "backupPathPrefix": "backups/clickhouse-phase03/scheduled",
+      "successfulJobsHistoryLimit": 1,
+      "failedJobsHistoryLimit": 1
+    }
+  ]
+}

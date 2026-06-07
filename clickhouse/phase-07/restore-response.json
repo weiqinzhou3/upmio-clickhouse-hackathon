@@ -1,0 +1,22 @@
+{
+  "requestId": "req-b93c3a6087c02615",
+  "name": "clickhouse-phase03-restore-q6drk",
+  "namespace": "upm-clickhouse-phase03-runtime",
+  "cluster": "clickhouse-phase03",
+  "type": "restore",
+  "status": "Pending",
+  "message": "task job is pending",
+  "jobRef": {
+    "namespace": "upm-clickhouse-phase03-runtime",
+    "name": "clickhouse-phase03-restore-q6drk"
+  },
+  "evidence": {
+    "backupPath": "backups/clickhouse-phase03/manual-20260607T115836Z",
+    "backupPathPrefix": "",
+    "logError": "read backup task logs: container \"clickhouse-task\" in pod \"clickhouse-phase03-restore-q6drk-mc8d7\" is waiting to start: ContainerCreating",
+    "logsRedacted": true,
+    "source": "upm_backup_validation.events",
+    "storageSecretRef": "clickhouse-backup-secret",
+    "target": "upm_restore_validation.events_restored"
+  }
+}

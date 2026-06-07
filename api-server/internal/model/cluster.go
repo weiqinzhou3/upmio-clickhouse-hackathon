@@ -116,8 +116,8 @@ func (r CreateClusterRequest) Validate() error {
 }
 
 func ValidateClusterIdentity(namespace, name string) error {
-	if errs := k8svalidation.IsDNS1123Label(namespace); len(errs) > 0 {
-		return fmt.Errorf("namespace: %s", errs[0])
+	if err := ValidateDNSLabel("namespace", namespace); err != nil {
+		return err
 	}
 	if errs := k8svalidation.IsDNS1123Subdomain(name); len(errs) > 0 {
 		return fmt.Errorf("name: %s", errs[0])
@@ -126,8 +126,12 @@ func ValidateClusterIdentity(namespace, name string) error {
 }
 
 func ValidateNamespace(namespace string) error {
-	if errs := k8svalidation.IsDNS1123Label(namespace); len(errs) > 0 {
-		return fmt.Errorf("namespace: %s", errs[0])
+	return ValidateDNSLabel("namespace", namespace)
+}
+
+func ValidateDNSLabel(field, value string) error {
+	if errs := k8svalidation.IsDNS1123Label(value); len(errs) > 0 {
+		return fmt.Errorf("%s: %s", field, errs[0])
 	}
 	return nil
 }

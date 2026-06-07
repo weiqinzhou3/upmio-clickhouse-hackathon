@@ -744,3 +744,88 @@ Codex will summarize submitted evidence and append it to the log below.
     analytics or multi-tenant query-log work.
 - Resolution artifact:
   - `docs/review/phase-06-review-response.md`
+
+### Entry 018 - Phase 07 Scope Amendment for Scheduled Backup
+
+- Date: 2026-06-07
+- AI tool: Codex
+- Topic: Add API-managed scheduled backup to Phase 07 before implementation
+- Human decision:
+  - Scheduled backup must be implemented in the hackathon MVP.
+  - Scheduled backup must be invoked and managed through `upm-api-server` APIs.
+- Codex response:
+  - Identified that the previous `master-spec` and Phase 07 spec treated the
+    backup scheduler as out of MVP scope.
+  - Recorded a new owner-approved MVP decision: Phase 07 includes a minimal
+    API-managed scheduled backup validation slice using Kubernetes CronJob.
+  - Preserved the safety boundary: no production backup policy engine, no
+    retention cleanup, no destructive restore into business tables, and no
+    plaintext credentials in API requests, ConfigMaps, logs, or Git.
+  - Updated Phase 07 to include manual backup API, restore API, task status
+    API, scheduled backup create/list/get/delete APIs, and real runtime
+    validation through Kubernetes Job/CronJob evidence.
+- Files affected:
+  - `docs/master-spec.md`
+  - `docs/design/day1-day2-requirement-coverage.md`
+  - `docs/design/api-design.md`
+  - `docs/api/upm-api-server-v1.md`
+  - `docs/phases/phase-07-backup-restore.md`
+  - `docs/ai-usage-phase02.md`
+
+### Entry 019 - Phase 07 Backup/Restore Runtime Implementation
+
+- Date: 2026-06-07
+- AI tool: Codex
+- Topic: Implement and validate backup, restore, task status, and scheduled
+  backup APIs
+- Human requirement:
+  - Backup/restore is a required database operations capability.
+  - Scheduled backup must be exposed through `upm-api-server`.
+  - Validation must use real Kubernetes apply/runtime checks and database
+    read/write verification, not dry-run-only evidence.
+- Codex implementation:
+  - Added `upm-api-server` model, routing, store interface, K8s Job/CronJob
+    rendering, task status, schedule status, and unit tests for Phase 07.
+  - Added RBAC for `jobs`, `cronjobs`, and `pods/log`.
+  - Added API documentation for all Phase 07 endpoints, request parameters,
+    response fields, error codes, and usage examples.
+  - Added `clickhouse/phase-07/scripts/validate-backup-restore-runtime.sh`.
+- Runtime evidence and AI correction loop:
+  - First runtime backup attempt failed because ClickHouse rejects archive
+    backup paths such as `.zip` for `BACKUP ... ON CLUSTER`. Codex changed the
+    default path model to S3 directory-style paths.
+  - First runtime restore attempt failed because direct restore of a
+    ReplicatedMergeTree backup reused the source Keeper path. Codex changed the
+    restore Job to verify that the target table does not exist, create an empty
+    validation target table, and restore data with `allow_different_table_def`.
+  - The final validation completed manual backup, manual restore, scheduled
+    backup, scheduled backup restore, schedule list, and schedule delete through
+    API calls and Kubernetes Job/CronJob evidence.
+- Final runtime result:
+  - `PASS phase07_backup_restore_runtime_validation`
+
+### Entry 020 - Phase 07 Review Response
+
+- Date: 2026-06-07
+- AI tools: Claude Code, Codex
+- Topic: Review repair for Phase 07 backup/restore APIs
+- Review artifact:
+  - `docs/review/phase-07-review.md`
+- Claude Code findings:
+  - Two medium findings: `taskName` / `scheduleName` path parameters reused
+    namespace validation, and `BackupStorage.Validate(prefix bool)` used a
+    boolean trap.
+  - Two low findings: redundant NUL check and no direct syntax test for the
+    embedded backup Job shell script.
+- Codex response:
+  - Added `ValidateDNSLabel(field, value)` and used it for task and schedule
+    path parameters.
+  - Split backup storage validation into `ValidatePath()` and
+    `ValidatePathPrefix()`.
+  - Removed the redundant NUL check because control character validation
+    already catches NUL.
+  - Added `TestBackupJobScriptBashSyntax` using `bash -n`.
+  - Rebuilt and synced `localhost/upmio/upm-api-server:phase-07` to all four
+    Kubernetes nodes, rolled out the API server, and reran runtime validation.
+- Final runtime result:
+  - `PASS phase07_backup_restore_runtime_validation`

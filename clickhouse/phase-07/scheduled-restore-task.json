@@ -1,0 +1,28 @@
+{
+  "requestId": "req-755e4429bae62f77",
+  "name": "clickhouse-phase03-restore-bll98",
+  "namespace": "upm-clickhouse-phase03-runtime",
+  "cluster": "clickhouse-phase03",
+  "type": "restore",
+  "status": "Succeeded",
+  "message": "Reached expected number of succeeded pods",
+  "startTime": "2026-06-07T11:59:09Z",
+  "completionTime": "2026-06-07T11:59:12Z",
+  "jobRef": {
+    "namespace": "upm-clickhouse-phase03-runtime",
+    "name": "clickhouse-phase03-restore-bll98"
+  },
+  "podRef": {
+    "namespace": "upm-clickhouse-phase03-runtime",
+    "name": "clickhouse-phase03-restore-bll98-tjhxl"
+  },
+  "evidence": {
+    "backupPath": "backups/clickhouse-phase03/scheduled/20260607T115900Z-clickhouse-phase03-backup-validation-every-minute-296805592kb9t",
+    "backupPathPrefix": "",
+    "logTail": "[2026-06-07T11:59:10Z] starting restore path=backups/clickhouse-phase03/scheduled/20260607T115900Z-clickhouse-phase03-backup-validation-every-minute-296805592kb9t target=upm_restore_validation.events_scheduled_restored\nclickhouse-phase03-0.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t3\t0\nclickhouse-phase03-2.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t2\t0\nclickhouse-phase03-3.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t1\t0\nclickhouse-phase03-1.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t0\t0\n0\nclickhouse-phase03-0.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t3\t0\nclickhouse-phase03-2.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t2\t0\nclickhouse-phase03-3.clickhouse-phase03-headless-svc.upm-clickhouse-phase03-runtime.svc.cluster.local\t9000\t0\t\t1\t0\nclick...[truncated]",
+    "logsRedacted": true,
+    "source": "upm_backup_validation.events",
+    "storageSecretRef": "clickhouse-backup-secret",
+    "target": "upm_restore_validation.events_scheduled_restored"
+  }
+}

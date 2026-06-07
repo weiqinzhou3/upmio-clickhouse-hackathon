@@ -28,6 +28,12 @@ type fakeStore struct {
 	metricsErr         error
 	diagnosticsReport  model.DiagnosticsReport
 	diagnosticsErr     error
+	taskStatus         model.TaskStatus
+	backupErr          error
+	restoreErr         error
+	scheduleStatus     model.BackupScheduleStatus
+	scheduleItems      []model.BackupScheduleStatus
+	scheduleErr        error
 	activeHealthchecks atomic.Int32
 	maxHealthchecks    atomic.Int32
 }
@@ -94,6 +100,73 @@ func (f *fakeStore) RunDiagnostics(_ context.Context, namespace, name string, fi
 		f.diagnosticsReport.Finalize()
 	}
 	return f.diagnosticsReport, nil
+}
+
+func (f *fakeStore) CreateBackup(_ context.Context, namespace, name string, _ model.BackupRequest) (model.TaskStatus, error) {
+	if f.backupErr != nil {
+		return model.TaskStatus{}, f.backupErr
+	}
+	if f.taskStatus.Name == "" {
+		f.taskStatus = model.TaskStatus{Namespace: namespace, Cluster: name, Name: name + "-backup-test", Type: model.TaskTypeBackup, Status: model.TaskStatusPending}
+	}
+	return f.taskStatus, nil
+}
+
+func (f *fakeStore) CreateRestore(_ context.Context, namespace, name string, _ model.RestoreRequest) (model.TaskStatus, error) {
+	if f.restoreErr != nil {
+		return model.TaskStatus{}, f.restoreErr
+	}
+	if f.taskStatus.Name == "" {
+		f.taskStatus = model.TaskStatus{Namespace: namespace, Cluster: name, Name: name + "-restore-test", Type: model.TaskTypeRestore, Status: model.TaskStatusPending}
+	}
+	return f.taskStatus, nil
+}
+
+func (f *fakeStore) GetTask(_ context.Context, namespace, name, taskName string) (model.TaskStatus, error) {
+	if f.taskStatus.Name == "" {
+		f.taskStatus = model.TaskStatus{Namespace: namespace, Cluster: name, Name: taskName, Type: model.TaskTypeBackup, Status: model.TaskStatusSucceeded}
+	}
+	return f.taskStatus, nil
+}
+
+func (f *fakeStore) CreateBackupSchedule(_ context.Context, namespace, name string, request model.BackupScheduleRequest) (model.BackupScheduleStatus, error) {
+	if f.scheduleErr != nil {
+		return model.BackupScheduleStatus{}, f.scheduleErr
+	}
+	if f.scheduleStatus.Name == "" {
+		f.scheduleStatus = model.BackupScheduleStatus{
+			Namespace:            namespace,
+			Cluster:              name,
+			Name:                 request.Name,
+			Schedule:             request.Schedule,
+			StorageSecretRef:     request.Storage.SecretRef,
+			BackupPathPrefix:     request.Storage.PathPrefix,
+			SuccessfulJobsRetain: *request.Execution.SuccessfulJobsHistoryLimit,
+			FailedJobsRetain:     *request.Execution.FailedJobsHistoryLimit,
+		}
+	}
+	return f.scheduleStatus, nil
+}
+
+func (f *fakeStore) ListBackupSchedules(context.Context, string, string) ([]model.BackupScheduleStatus, error) {
+	if f.scheduleErr != nil {
+		return nil, f.scheduleErr
+	}
+	return f.scheduleItems, nil
+}
+
+func (f *fakeStore) GetBackupSchedule(_ context.Context, namespace, name, scheduleName string) (model.BackupScheduleStatus, error) {
+	if f.scheduleErr != nil {
+		return model.BackupScheduleStatus{}, f.scheduleErr
+	}
+	if f.scheduleStatus.Name == "" {
+		f.scheduleStatus = model.BackupScheduleStatus{Namespace: namespace, Cluster: name, Name: scheduleName, Schedule: "*/1 * * * *"}
+	}
+	return f.scheduleStatus, nil
+}
+
+func (f *fakeStore) DeleteBackupSchedule(context.Context, string, string, string) error {
+	return f.scheduleErr
 }
 
 func TestHealthz(t *testing.T) {
@@ -339,6 +412,104 @@ func TestRunDiagnosticsRejectsInvalidFilter(t *testing.T) {
 
 	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"code":"VALIDATION_ERROR"`) {
 		t.Fatalf("unexpected response: %s", response.Body)
+	}
+}
+
+func TestCreateBackup(t *testing.T) {
+	handler := newTestServer(&fakeStore{})
+	body := `{
+		"scope":{"database":"upm_backup_validation","table":"events"},
+		"storage":{"type":"s3","secretRef":"clickhouse-backup-secret","path":"backups/ch/manual"},
+		"execution":{"type":"kubernetesJob"}
+	}`
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/backup", strings.NewReader(body))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", response.Code, response.Body)
+	}
+	if !strings.Contains(response.Body.String(), `"type":"backup"`) || !strings.Contains(response.Body.String(), `"requestId":"req-`) {
+		t.Fatalf("unexpected response: %s", response.Body)
+	}
+}
+
+func TestCreateRestoreRequiresConfirm(t *testing.T) {
+	handler := newTestServer(&fakeStore{})
+	body := `{
+		"backupRef":"backups/ch/manual",
+		"source":{"database":"upm_backup_validation","table":"events"},
+		"target":{"database":"restore_validation","table":"events_restored"},
+		"storage":{"type":"s3","secretRef":"clickhouse-backup-secret"},
+		"execution":{"type":"kubernetesJob"},
+		"reason":"restore validation drill"
+	}`
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/restore", strings.NewReader(body))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"confirm must be true`) {
+		t.Fatalf("unexpected response: %s", response.Body)
+	}
+}
+
+func TestCreateBackupSchedule(t *testing.T) {
+	handler := newTestServer(&fakeStore{})
+	body := `{
+		"name":"validation-every-minute",
+		"schedule":"*/1 * * * *",
+		"scope":{"database":"upm_backup_validation","table":"events"},
+		"storage":{"type":"s3","secretRef":"clickhouse-backup-secret","pathPrefix":"backups/ch/scheduled"},
+		"execution":{"type":"kubernetesCronJob","concurrencyPolicy":"Forbid"}
+	}`
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/backup-schedules", strings.NewReader(body))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", response.Code, response.Body)
+	}
+	if !strings.Contains(response.Body.String(), `"name":"validation-every-minute"`) {
+		t.Fatalf("unexpected response: %s", response.Body)
+	}
+}
+
+func TestGetTask(t *testing.T) {
+	handler := newTestServer(&fakeStore{})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/tasks/clickhouse-phase03-backup-test", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"status":"Succeeded"`) {
+		t.Fatalf("unexpected response: %s", response.Body)
+	}
+}
+
+func TestListBackupSchedulesReturnsEmptyArray(t *testing.T) {
+	handler := newTestServer(&fakeStore{})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/backup-schedules", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"items":[]`) {
+		t.Fatalf("unexpected response: %s", response.Body)
+	}
+}
+
+func TestDeleteBackupSchedule(t *testing.T) {
+	handler := newTestServer(&fakeStore{})
+	request := httptest.NewRequest(http.MethodDelete, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/backup-schedules/validation-every-minute", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", response.Code, response.Body)
 	}
 }
 
