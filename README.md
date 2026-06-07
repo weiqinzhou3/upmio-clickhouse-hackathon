@@ -292,6 +292,7 @@ ClickHouse。
 | [`docs/api/upm-api-server-v1.md`](docs/api/upm-api-server-v1.md) | API 完整参考 |
 | [`docs/manuals/scripts-manual.md`](docs/manuals/scripts-manual.md) | 脚本使用手册 |
 | [`docs/manuals/demo-guide.md`](docs/manuals/demo-guide.md) | 黑客松 Demo 手册 |
+| [`docs/manuals/full-demo-runbook.md`](docs/manuals/full-demo-runbook.md) | 从 0 到完整 Demo 的操作手册 |
 | [`docs/manuals/hackathon-stage2-assessment.md`](docs/manuals/hackathon-stage2-assessment.md) | 第二阶段目标覆盖评估 |
 | [`docs/master-spec.md`](docs/master-spec.md) | Master Spec |
 

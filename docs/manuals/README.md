@@ -10,6 +10,7 @@ This directory contains the user-facing manuals for the completed hackathon MVP.
 | [Deployment Manual](deployment-manual.md) | Environment setup for Kubernetes, UPMIO, `upm-api-server`, and kube-prometheus-stack |
 | [Scripts Manual](scripts-manual.md) | Centralized script inventory and usage guide |
 | [Demo Guide](demo-guide.md) | Recommended hackathon demo flow and validation commands |
+| [Full Demo Runbook](full-demo-runbook.md) | Single runbook from environment preparation to complete demo |
 | [Hackathon Stage 2 Assessment](hackathon-stage2-assessment.md) | Coverage judgment against the hackathon second-stage goals |
 
 The full endpoint-level API reference remains in
