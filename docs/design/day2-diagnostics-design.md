@@ -1,7 +1,7 @@
 # Day2 Diagnostics Design
 
-- Version: 0.3
-- Date: 2026-05-27
+- Version: 0.4
+- Date: 2026-06-07
 - Status: Sealed
 - Owner: zqw
 - Related:
@@ -23,7 +23,7 @@ MVP diagnostics are observational. They do not perform destructive remediation.
 | Parts | `system.parts` | active parts, inactive parts, TopN large tables/partitions |
 | Merges | `system.merges` | running merges, long merges |
 | Mutations | `system.mutations` | failed/stuck mutations |
-| Storage | PVC, Prometheus, system tables | capacity pressure, TopN tables |
+| Storage | Kubernetes PVC metadata | PVC binding state and requested capacity |
 | Write path | system tables/logs where available | insert failures, write volume, client summary where available |
 | Services | K8s Service/Endpoint | endpoint readiness |
 
@@ -38,18 +38,39 @@ The following are project scope and should be mapped to Phase 06/Future:
 - write quality validation by partition;
 - write quality validation by table row count.
 
-MVP may implement read-only visibility first. Corrective actions are future work.
+MVP implements read-only visibility first. Corrective actions are future work.
+
+Phase 06 implements:
+
+- write client statistics from `system.query_log` when it exists;
+- `UNKNOWN` write-client finding when `system.query_log` is disabled or absent;
+- optional read-only row-count validation when the API caller supplies
+  `database` and `table`;
+- optional `partition`, `timeColumn`, `startTime`, `endTime`, and
+  `expectedRows` criteria for row-count validation.
 
 ## 4. Output Model
 
 Diagnostics output should include:
 
 - status: `PASS`, `WARN`, `FAIL`, or `UNKNOWN`;
-- severity;
+- finding severity: `INFO`, `WARN`, `CRITICAL`, or `UNKNOWN`;
 - summary;
 - evidence;
 - recommended next action;
 - whether human review is required.
+
+Status aggregation:
+
+| Finding Severity | Report Status Impact |
+|---|---|
+| `CRITICAL` | `FAIL` |
+| `WARN` | `WARN` if no `CRITICAL` exists |
+| `UNKNOWN` | `UNKNOWN` only if no `WARN` / `CRITICAL` exists |
+| `INFO` | `PASS` when all findings are `INFO` |
+
+Thresholds are environment-specific and must be configurable through
+`upm-api-server` runtime configuration.
 
 ## 5. Non-Goals
 

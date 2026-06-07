@@ -96,6 +96,14 @@ data:
   REQUEST_TIMEOUT: "10m"
   PROMETHEUS_BASE_URL: "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
   PROMETHEUS_TIMEOUT: "10s"
+  DIAGNOSTICS_REPLICA_DELAY_WARN_SECONDS: "60"
+  DIAGNOSTICS_REPLICA_DELAY_CRITICAL_SECONDS: "300"
+  DIAGNOSTICS_REPLICATION_QUEUE_WARN: "50"
+  DIAGNOSTICS_REPLICATION_QUEUE_CRITICAL: "500"
+  DIAGNOSTICS_ACTIVE_PARTS_PER_PARTITION_WARN: "150"
+  DIAGNOSTICS_INACTIVE_PARTS_WARN: "50"
+  DIAGNOSTICS_MERGE_ELAPSED_WARN_SECONDS: "1800"
+  DIAGNOSTICS_MUTATION_AGE_WARN_SECONDS: "600"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -123,7 +131,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: upm-api-server
-          image: localhost/upmio/upm-api-server:phase-05
+          image: localhost/upmio/upm-api-server:phase-06
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:

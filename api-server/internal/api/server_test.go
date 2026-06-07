@@ -26,6 +26,8 @@ type fakeStore struct {
 	healthDelay        time.Duration
 	metricsSummary     model.MetricsSummary
 	metricsErr         error
+	diagnosticsReport  model.DiagnosticsReport
+	diagnosticsErr     error
 	activeHealthchecks atomic.Int32
 	maxHealthchecks    atomic.Int32
 }
@@ -80,6 +82,18 @@ func (f *fakeStore) GetMetricsSummary(_ context.Context, namespace, name string)
 		f.metricsSummary = model.MetricsSummary{Namespace: namespace, Name: name, Cluster: name, Status: "READY"}
 	}
 	return f.metricsSummary, nil
+}
+
+func (f *fakeStore) RunDiagnostics(_ context.Context, namespace, name string, filter model.DiagnosticsFilter) (model.DiagnosticsReport, error) {
+	if f.diagnosticsErr != nil {
+		return model.DiagnosticsReport{}, f.diagnosticsErr
+	}
+	if f.diagnosticsReport.Name == "" {
+		f.diagnosticsReport = model.NewDiagnosticsReport(namespace, name, filter, model.DefaultDiagnosticsThresholds())
+		f.diagnosticsReport.AddFinding("replica", model.DiagnosticSeverityInfo, "Replicas are healthy", nil, "No action required", false)
+		f.diagnosticsReport.Finalize()
+	}
+	return f.diagnosticsReport, nil
 }
 
 func TestHealthz(t *testing.T) {
@@ -297,6 +311,33 @@ func TestGetMetricsSummaryReturnsPrometheusUnavailable(t *testing.T) {
 	handler.ServeHTTP(response, request)
 
 	if response.Code != http.StatusServiceUnavailable || !strings.Contains(response.Body.String(), `"code":"PROMETHEUS_UNAVAILABLE"`) {
+		t.Fatalf("unexpected response: %s", response.Body)
+	}
+}
+
+func TestRunDiagnostics(t *testing.T) {
+	handler := newTestServer(&fakeStore{})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/diagnostics?database=upm_healthcheck&table=dist_events&expectedRows=8&limit=10", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body)
+	}
+	if !strings.Contains(response.Body.String(), `"category":"replica"`) || !strings.Contains(response.Body.String(), `"requestId":"req-`) {
+		t.Fatalf("unexpected response: %s", response.Body)
+	}
+}
+
+func TestRunDiagnosticsRejectsInvalidFilter(t *testing.T) {
+	handler := newTestServer(&fakeStore{})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/clusters/upm-clickhouse/clickhouse-phase03/diagnostics?severity=BAD&limit=101", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"code":"VALIDATION_ERROR"`) {
 		t.Fatalf("unexpected response: %s", response.Body)
 	}
 }

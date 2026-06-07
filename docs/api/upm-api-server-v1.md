@@ -1,13 +1,14 @@
 # UPM API Server v1 API Reference
 
-- Version: 0.7
-- Date: 2026-06-06
-- Status: Implemented and runtime validated through Phase 05
+- Version: 0.8
+- Date: 2026-06-07
+- Status: Implemented and runtime validated through Phase 06
 - Owner: zqw
 - Related:
   - ../master-spec.md
   - ../phases/phase-03-upm-api-server.md
   - ../phases/phase-04-healthcheck.md
+  - ../phases/phase-06-day2-diagnostics.md
   - ../design/api-design.md
 
 ## 1. Purpose
@@ -676,13 +677,119 @@ curl -fsS \
   | jq .
 ```
 
-## 8. Not Supported After Phase 05
+## 8. Diagnostics API
+
+### 8.1 Run Day2 Read-only Diagnostics
+
+```http
+GET /api/v1/clusters/{namespace}/{name}/diagnostics
+```
+
+Purpose:
+
+- Return read-only Day2 diagnostics for one managed ClickHouse cluster.
+- Inspect replica state, replication queue, parts/partitions, merges,
+  mutations, Keeper role state, PVC capacity/binding, write-client visibility,
+  and optional write-quality row count.
+- This API returns recommendations only. It does not execute remediation,
+  mutation kill, OPTIMIZE, TTL changes, backup/restore, or data correction.
+
+Path parameters:
+
+| Parameter | Required | Description |
+|---|---:|---|
+| `namespace` | Yes | Managed ClickHouse cluster namespace |
+| `name` | Yes | Managed ClickHouse cluster name |
+
+Query parameters:
+
+| Parameter | Required | Description |
+|---|---:|---|
+| `database` | No | Restrict table-scoped diagnostics and enable row-count validation when used with `table` |
+| `table` | No | Restrict table-scoped diagnostics and enable row-count validation when used with `database` |
+| `partition` | No | Optional `_partition_id` filter for row-count validation |
+| `timeColumn` | No | Optional time column for row-count validation |
+| `startTime` | No | Optional lower time bound; requires `timeColumn` |
+| `endTime` | No | Optional upper time bound; requires `timeColumn` |
+| `expectedRows` | No | Optional expected row count. Mismatch returns a `WARN` finding |
+| `severity` | No | Exact finding filter: `INFO`, `WARN`, `CRITICAL`, or `UNKNOWN` |
+| `limit` | No | Maximum evidence rows per diagnostic area, default `20`, maximum `100` |
+
+Request body: none.
+
+Success HTTP status: `200 OK`.
+
+Report status behavior:
+
+| Status | Meaning |
+|---|---|
+| `PASS` | All returned findings are `INFO`, or the severity filter returned no findings |
+| `WARN` | At least one returned finding is `WARN` and none is `CRITICAL` |
+| `FAIL` | At least one returned finding is `CRITICAL` |
+| `UNKNOWN` | At least one returned finding is `UNKNOWN` and none is `WARN` / `CRITICAL` |
+
+Finding severity values:
+
+| Severity | Meaning |
+|---|---|
+| `INFO` | Read-only evidence is available and within configured thresholds |
+| `WARN` | DBA review is recommended, but no automatic action is taken |
+| `CRITICAL` | Human review is required before further operations |
+| `UNKNOWN` | Required evidence is unavailable, for example `system.query_log` is disabled |
+
+Response fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `namespace` | string | Managed cluster namespace |
+| `name` / `cluster` | string | Managed cluster name |
+| `status` | string | Aggregated diagnostics status |
+| `generatedAt` | timestamp | Diagnostics generation time |
+| `filters` | object | Applied query filters |
+| `thresholds` | object | Runtime diagnostics thresholds from API-server configuration |
+| `summary.info` | integer | Count of `INFO` findings |
+| `summary.warnings` | integer | Count of `WARN` findings |
+| `summary.critical` | integer | Count of `CRITICAL` findings |
+| `summary.unknown` | integer | Count of `UNKNOWN` findings |
+| `findings[]` | array | Category findings with severity, evidence, recommendation, and human-review flag |
+| `requestId` | string | Request correlation ID |
+
+Required finding categories in the normal full response:
+
+| Category | Evidence Source |
+|---|---|
+| `replica` | `system.replicas` |
+| `replication_queue` | `system.replication_queue` |
+| `parts` | `system.parts` |
+| `merges` | `system.merges` |
+| `mutations` | `system.mutations` |
+| `keeper` | Keeper `mntr` probe |
+| `storage` | Kubernetes PVC status/capacity |
+| `write_client_stats` | `system.query_log` if enabled, otherwise `UNKNOWN` |
+| `write_quality` | Optional read-only row count when `database` and `table` are supplied |
+
+Usage:
+
+```bash
+curl -fsS \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/diagnostics?limit=20" \
+  | jq .
+```
+
+Optional read-only row-count validation:
+
+```bash
+curl -fsS \
+  "${UPM_API_SERVER_URL}/api/v1/clusters/upm-clickhouse-phase03-runtime/clickhouse-phase03/diagnostics?database=upm_healthcheck&table=dist_events&expectedRows=8&limit=20" \
+  | jq '.status, .summary, [.findings[] | {category,severity,title}]'
+```
+
+## 9. Not Supported After Phase 06
 
 These APIs are registered in later phase specs and must not be claimed as
 supported until implemented and validated:
 
 | API | Phase |
 |---|---|
-| `GET /api/v1/clusters/{namespace}/{name}/diagnostics` | Phase 06 |
 | `POST /api/v1/clusters/{namespace}/{name}/backup` | Phase 07 |
 | `POST /api/v1/clusters/{namespace}/{name}/restore` | Phase 07 |

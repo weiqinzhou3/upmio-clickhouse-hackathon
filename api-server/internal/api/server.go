@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -49,6 +50,7 @@ func NewServer(store platform.Store, logger *slog.Logger, timeout time.Duration)
 	mux.HandleFunc("POST /api/v1/clusters/{namespace}/{name}/healthcheck", server.runHealthcheck)
 	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/healthcheck/latest", server.getLatestHealthcheck)
 	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/metrics/summary", server.getMetricsSummary)
+	mux.HandleFunc("GET /api/v1/clusters/{namespace}/{name}/diagnostics", server.runDiagnostics)
 	return server.middleware(mux)
 }
 
@@ -231,6 +233,58 @@ func (s *Server) getMetricsSummary(w http.ResponseWriter, r *http.Request) {
 	}
 	summary.RequestID = requestID(r.Context())
 	writeJSON(w, http.StatusOK, summary)
+}
+
+func (s *Server) runDiagnostics(w http.ResponseWriter, r *http.Request) {
+	namespace, name := r.PathValue("namespace"), r.PathValue("name")
+	if err := model.ValidateClusterIdentity(namespace, name); err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	filter, err := diagnosticsFilterFromQuery(r)
+	if err != nil {
+		s.writeValidationError(w, r, err)
+		return
+	}
+	report, err := s.store.RunDiagnostics(r.Context(), namespace, name, filter)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	report.RequestID = requestID(r.Context())
+	writeJSON(w, http.StatusOK, report)
+}
+
+func diagnosticsFilterFromQuery(r *http.Request) (model.DiagnosticsFilter, error) {
+	query := r.URL.Query()
+	filter := model.DiagnosticsFilter{
+		Database:   query.Get("database"),
+		Table:      query.Get("table"),
+		Partition:  query.Get("partition"),
+		TimeColumn: query.Get("timeColumn"),
+		StartTime:  query.Get("startTime"),
+		EndTime:    query.Get("endTime"),
+		Severity:   query.Get("severity"),
+	}
+	if value := query.Get("limit"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			return model.DiagnosticsFilter{}, err
+		}
+		filter.Limit = parsed
+	}
+	if value := query.Get("expectedRows"); value != "" {
+		parsed, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return model.DiagnosticsFilter{}, err
+		}
+		filter.ExpectedRows = &parsed
+	}
+	filter = filter.WithDefaults()
+	if err := filter.Validate(); err != nil {
+		return model.DiagnosticsFilter{}, err
+	}
+	return filter, nil
 }
 
 func (s *Server) writeValidationError(w http.ResponseWriter, r *http.Request, err error) {

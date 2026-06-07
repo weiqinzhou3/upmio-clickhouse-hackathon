@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE="${IMAGE:-localhost/upmio/upm-api-server:phase-05}"
+IMAGE="${IMAGE:-localhost/upmio/upm-api-server:phase-06}"
 SSH_USER="${SSH_USER:-root}"
 NODES="${NODES:-192.168.35.201 192.168.35.202 192.168.35.203 192.168.35.204}"
 GOPROXY="${GOPROXY:-https://goproxy.cn,direct}"

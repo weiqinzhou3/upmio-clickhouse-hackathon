@@ -676,3 +676,42 @@ Codex will summarize submitted evidence and append it to the log below.
     results from all-error query results.
 - Resolution artifact:
   - `docs/review/phase-05-review-response.md`
+
+### Entry 016 - Phase 06 Day2 Diagnostics Implementation
+
+- Date: 2026-06-07
+- AI tool: Codex
+- Topic: Phase 06 startup review, spec repair, implementation, and runtime
+  validation for Day2 read-only diagnostics
+- Human instruction:
+  - Continue after Phase 05 closeout.
+  - Before coding, explain the Phase 06 target, boundary, risks, and real
+    validation approach.
+  - Do not rely on local binary deployment; validate through Kubernetes
+    `upm-api-server`.
+- Codex work:
+  - Performed Phase 06 startup review against `master-spec`,
+    `evidence-summary`, Phase 06 spec, and referenced design documents.
+  - Repaired Phase 06 spec from the stale `backend/` path to the current
+    `api-server/` path.
+  - Registered `GET /api/v1/clusters/{namespace}/{name}/diagnostics` in
+    `upm-api-server`.
+  - Implemented read-only diagnostics for replica state, replication queue,
+    parts/partitions, merges, mutations, Keeper leader/follower state, PVC
+    storage metadata, write client stats, and write quality row-count checks.
+  - Added configurable diagnostics thresholds through the API server ConfigMap.
+  - Preserved the Phase 06 boundary: recommendations only, no mutation kill,
+    no OPTIMIZE, no data correction, no backup/restore, no GrpcCall dependency.
+- Runtime evidence:
+  - `upm-api-server` was rebuilt as
+    `localhost/upmio/upm-api-server:phase-06`, imported into all four K8s
+    nodes, and deployed in `upm-system`.
+  - Full runtime validation saved evidence under `clickhouse/phase-06/`.
+  - The diagnostics API returned all required categories with zero `CRITICAL`
+    findings.
+  - Current `system.query_log` is absent, so write client stats correctly
+    returned `UNKNOWN` instead of failing the API request.
+  - Read-only row-count validation against `upm_healthcheck.dist_events`
+    returned `actualRows=8` and `expectedRows=8`.
+  - The final validation ended with
+    `PASS phase06_diagnostics_runtime_validation`.

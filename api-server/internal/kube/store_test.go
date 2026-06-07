@@ -296,6 +296,20 @@ func TestFirstAvailableMetricsDistinguishesAllEmptyFromAllErrors(t *testing.T) {
 	}
 }
 
+func TestDiagnosticsHelpers(t *testing.T) {
+	filter := model.DiagnosticsFilter{Database: "db'a", Table: "tbl", Limit: 20}
+	where := diagnosticsWhere(filter, []string{"active"})
+	if !strings.Contains(where, "active") || !strings.Contains(where, "database = 'db\\'a'") || !strings.Contains(where, "table = 'tbl'") {
+		t.Fatalf("unexpected diagnostics WHERE clause: %s", where)
+	}
+	if got := clickHouseIdentifier("a`b"); got != "`a``b`" {
+		t.Fatalf("unexpected identifier quoting: %s", got)
+	}
+	if got := maxDiagnosticSeverity(model.DiagnosticSeverityWarn, model.DiagnosticSeverityCritical); got != model.DiagnosticSeverityCritical {
+		t.Fatalf("unexpected severity max: %s", got)
+	}
+}
+
 func TestGetMetricsSummaryOrchestration(t *testing.T) {
 	namespace := "upm-clickhouse"
 	name := "clickhouse-demo"
