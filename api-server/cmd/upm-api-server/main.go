@@ -20,7 +20,7 @@ func main() {
 	cfg := config.FromEnv()
 
 	prometheusClient := prometheus.NewClient(cfg.PrometheusBaseURL, cfg.PrometheusTimeout)
-	store, err := kube.NewInClusterStore(prometheusClient)
+	store, err := kube.NewInClusterStore(prometheusClient, cfg.DiagnosticsThresholds)
 	if err != nil {
 		logger.Error("initialize Kubernetes clients", "error", err)
 		os.Exit(1)

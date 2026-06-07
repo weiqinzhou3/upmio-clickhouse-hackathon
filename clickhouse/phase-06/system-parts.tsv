@@ -1,0 +1,4 @@
+phase03_manual_acceptance	local_events	tuple()	1	4	600
+phase03_api_validation	local_events	tuple()	1	4	600
+phase03_review_closeout	local_events	tuple()	1	4	600
+upm_healthcheck	local_events	tuple()	1	4	603

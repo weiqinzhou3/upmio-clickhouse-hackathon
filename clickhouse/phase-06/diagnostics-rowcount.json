@@ -1,0 +1,199 @@
+{
+  "requestId": "req-81f7edb5f863c6bc",
+  "namespace": "upm-clickhouse-phase03-runtime",
+  "name": "clickhouse-phase03",
+  "cluster": "clickhouse-phase03",
+  "status": "UNKNOWN",
+  "generatedAt": "2026-06-07T07:48:35.910308605Z",
+  "filters": {
+    "database": "upm_healthcheck",
+    "table": "dist_events",
+    "expectedRows": 8,
+    "limit": 20
+  },
+  "thresholds": {
+    "replicaDelayWarnSeconds": 60,
+    "replicaDelayCriticalSeconds": 300,
+    "replicationQueueWarn": 50,
+    "replicationQueueCritical": 500,
+    "activePartsPerPartitionWarn": 150,
+    "inactivePartsWarn": 50,
+    "mergeElapsedWarnSeconds": 1800,
+    "mutationAgeWarnSeconds": 600
+  },
+  "summary": {
+    "info": 8,
+    "warnings": 0,
+    "critical": 0,
+    "unknown": 1
+  },
+  "findings": [
+    {
+      "category": "keeper",
+      "severity": "INFO",
+      "title": "Keeper quorum has one leader and followers",
+      "evidence": {
+        "failures": {},
+        "leaders": 1,
+        "roles": {
+          "clickhouse-phase03-keeper-0": "follower",
+          "clickhouse-phase03-keeper-1": "follower",
+          "clickhouse-phase03-keeper-2": "leader"
+        }
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "storage",
+      "severity": "INFO",
+      "title": "PVCs are bound and capacity metadata is visible",
+      "evidence": {
+        "actualPVCs": 7,
+        "expectedPVCs": 7,
+        "notBoundPVCs": [],
+        "pvcs": [
+          {
+            "capacity": "20Gi",
+            "name": "clickhouse-phase03-0-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-13f1d54f-b585-4e39-9aea-fd4ff57b92dc"
+          },
+          {
+            "capacity": "20Gi",
+            "name": "clickhouse-phase03-1-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-8a7c8dbf-7fbb-494e-81b9-a67c9fba32ba"
+          },
+          {
+            "capacity": "20Gi",
+            "name": "clickhouse-phase03-2-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-bd58311d-f4d5-4184-b418-6eabd41eaaee"
+          },
+          {
+            "capacity": "20Gi",
+            "name": "clickhouse-phase03-3-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-22d04cc3-ebd0-41f1-9c4f-53f058960869"
+          },
+          {
+            "capacity": "10Gi",
+            "name": "clickhouse-phase03-keeper-0-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-f09fa9a7-2bf6-4e17-9f89-87635808a84c"
+          },
+          {
+            "capacity": "10Gi",
+            "name": "clickhouse-phase03-keeper-1-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-96ec41c0-edf7-4de7-8b91-b275df13ebaf"
+          },
+          {
+            "capacity": "10Gi",
+            "name": "clickhouse-phase03-keeper-2-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-96ea0f86-c614-4c13-a7e1-9ca11aca87b4"
+          }
+        ]
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "replica",
+      "severity": "INFO",
+      "title": "No replicated tables matched the diagnostics filter",
+      "evidence": {
+        "filters": {
+          "database": "upm_healthcheck",
+          "table": "dist_events",
+          "expectedRows": 8,
+          "limit": 20
+        },
+        "samplePod": "clickhouse-phase03-0"
+      },
+      "recommendation": "No action required when the filter intentionally excludes replicated tables.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "replication_queue",
+      "severity": "INFO",
+      "title": "Replication queue is empty",
+      "evidence": {
+        "samplePod": "clickhouse-phase03-0"
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "parts",
+      "severity": "INFO",
+      "title": "Parts and partitions are within configured thresholds",
+      "evidence": {
+        "issues": [],
+        "partitions": [],
+        "samplePod": "clickhouse-phase03-0",
+        "tables": []
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "merges",
+      "severity": "INFO",
+      "title": "No running merges matched the diagnostics filter",
+      "evidence": {
+        "samplePod": "clickhouse-phase03-0"
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "mutations",
+      "severity": "INFO",
+      "title": "No mutations matched the diagnostics filter",
+      "evidence": {
+        "samplePod": "clickhouse-phase03-0"
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "write_client_stats",
+      "severity": "UNKNOWN",
+      "title": "system.query_log is not available",
+      "evidence": {
+        "error": "",
+        "exists": "0"
+      },
+      "recommendation": "Enable ClickHouse query_log to collect write client statistics by user, client IP, and target table.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "write_quality",
+      "severity": "INFO",
+      "title": "Read-only row-count validation completed",
+      "evidence": {
+        "actualRows": 8,
+        "database": "upm_healthcheck",
+        "endTime": "",
+        "expectedRows": 8,
+        "expectedRowsProvided": true,
+        "partition": "",
+        "startTime": "",
+        "table": "dist_events",
+        "timeColumn": ""
+      },
+      "recommendation": "No action required unless expectedRows is provided and does not match.",
+      "humanReviewRequired": false
+    }
+  ]
+}

@@ -74,13 +74,14 @@ type prometheusQuerier interface {
 }
 
 type Store struct {
-	dynamic    dynamic.Interface
-	core       kubernetes.Interface
-	restConfig *rest.Config
-	prometheus prometheusQuerier
+	dynamic               dynamic.Interface
+	core                  kubernetes.Interface
+	restConfig            *rest.Config
+	prometheus            prometheusQuerier
+	diagnosticsThresholds model.DiagnosticsThresholds
 }
 
-func NewInClusterStore(prometheusClient prometheusQuerier) (*Store, error) {
+func NewInClusterStore(prometheusClient prometheusQuerier, diagnosticsThresholds model.DiagnosticsThresholds) (*Store, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("load in-cluster Kubernetes config: %w", err)
@@ -95,15 +96,21 @@ func NewInClusterStore(prometheusClient prometheusQuerier) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create core Kubernetes client: %w", err)
 	}
-	return &Store{dynamic: dynamicClient, core: coreClient, restConfig: config, prometheus: prometheusClient}, nil
+	return &Store{
+		dynamic:               dynamicClient,
+		core:                  coreClient,
+		restConfig:            config,
+		prometheus:            prometheusClient,
+		diagnosticsThresholds: diagnosticsThresholds.WithDefaults(),
+	}, nil
 }
 
 func NewStore(dynamicClient dynamic.Interface, coreClient kubernetes.Interface) *Store {
-	return &Store{dynamic: dynamicClient, core: coreClient}
+	return &Store{dynamic: dynamicClient, core: coreClient, diagnosticsThresholds: model.DefaultDiagnosticsThresholds()}
 }
 
 func NewStoreWithPrometheus(dynamicClient dynamic.Interface, coreClient kubernetes.Interface, prometheusClient prometheusQuerier) *Store {
-	return &Store{dynamic: dynamicClient, core: coreClient, prometheus: prometheusClient}
+	return &Store{dynamic: dynamicClient, core: coreClient, prometheus: prometheusClient, diagnosticsThresholds: model.DefaultDiagnosticsThresholds()}
 }
 
 func (s *Store) CreateCluster(ctx context.Context, request model.CreateClusterRequest) (model.ClusterSummary, error) {

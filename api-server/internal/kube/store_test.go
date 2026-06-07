@@ -296,6 +296,93 @@ func TestFirstAvailableMetricsDistinguishesAllEmptyFromAllErrors(t *testing.T) {
 	}
 }
 
+func TestDiagnosticsHelpers(t *testing.T) {
+	filter := model.DiagnosticsFilter{Database: "db'a", Table: "tbl", Limit: 20}
+	where := diagnosticsWhere(filter, []string{"active"})
+	if !strings.Contains(where, "active") || !strings.Contains(where, "database = 'db\\'a'") || !strings.Contains(where, "table = 'tbl'") {
+		t.Fatalf("unexpected diagnostics WHERE clause: %s", where)
+	}
+	if got := clickHouseStringLiteral("a\\b'c"); got != "'a\\\\b\\'c'" {
+		t.Fatalf("unexpected string literal quoting: %s", got)
+	}
+	if got := clickHouseIdentifier("a`b"); got != "`a``b`" {
+		t.Fatalf("unexpected identifier quoting: %s", got)
+	}
+	if got := diagnosticSeverityRank(model.DiagnosticSeverityWarn); got <= diagnosticSeverityRank(model.DiagnosticSeverityUnknown) {
+		t.Fatalf("expected WARN to rank above UNKNOWN")
+	}
+	if got := maxDiagnosticSeverity(model.DiagnosticSeverityWarn, model.DiagnosticSeverityCritical); got != model.DiagnosticSeverityCritical {
+		t.Fatalf("unexpected severity max: %s", got)
+	}
+	if got, err := parseInt("42"); err != nil || got != 42 {
+		t.Fatalf("parseInt returned %d, %v", got, err)
+	}
+	if _, err := parseInt(""); err == nil {
+		t.Fatalf("expected empty integer parse to fail")
+	}
+	if _, err := parseInt("bad"); err == nil {
+		t.Fatalf("expected invalid integer parse to fail")
+	}
+	if got, err := parseInt64("99"); err != nil || got != 99 {
+		t.Fatalf("parseInt64 returned %d, %v", got, err)
+	}
+	if got, err := parseFloat("3.5"); err != nil || got != 3.5 {
+		t.Fatalf("parseFloat returned %f, %v", got, err)
+	}
+	parseIssues := []map[string]any{}
+	if got := diagnosticInt("bad", "queue_size", &parseIssues); got != 0 || len(parseIssues) != 1 {
+		t.Fatalf("diagnosticInt should record parse failure: got=%d issues=%#v", got, parseIssues)
+	}
+	source := map[string]any{"value": 1}
+	copied := copyStringAnyMap(source)
+	copied["value"] = 2
+	if source["value"] != 1 {
+		t.Fatalf("copyStringAnyMap must not mutate source: %#v", source)
+	}
+}
+
+func TestRunDiagnosticsNoServerPodsReturnsStructuredFindings(t *testing.T) {
+	namespace := "upm-clickhouse"
+	name := "clickhouse-demo"
+	store := diagnosticsStoreFixture(namespace, name, false)
+
+	report, err := store.RunDiagnostics(context.Background(), namespace, name, model.DiagnosticsFilter{Limit: 20})
+	if err != nil {
+		t.Fatalf("RunDiagnostics returned error: %v", err)
+	}
+
+	for _, category := range []string{"replica", "replication_queue", "parts", "merges", "mutations", "write_client_stats", "write_quality"} {
+		finding := diagnosticFinding(report, category)
+		if finding == nil {
+			t.Fatalf("missing finding for category %s: %#v", category, report.Findings)
+		}
+		if finding.Severity != model.DiagnosticSeverityCritical {
+			t.Fatalf("category %s severity=%s, want CRITICAL", category, finding.Severity)
+		}
+	}
+}
+
+func TestRunDiagnosticsSQLFailuresBecomeUnknownFindings(t *testing.T) {
+	namespace := "upm-clickhouse"
+	name := "clickhouse-demo"
+	store := diagnosticsStoreFixture(namespace, name, true)
+
+	report, err := store.RunDiagnostics(context.Background(), namespace, name, model.DiagnosticsFilter{Limit: 20})
+	if err != nil {
+		t.Fatalf("RunDiagnostics returned error: %v", err)
+	}
+
+	for _, category := range []string{"replica", "replication_queue", "parts", "merges", "mutations", "write_client_stats", "write_quality"} {
+		finding := diagnosticFinding(report, category)
+		if finding == nil {
+			t.Fatalf("missing finding for category %s: %#v", category, report.Findings)
+		}
+		if finding.Severity != model.DiagnosticSeverityUnknown {
+			t.Fatalf("category %s severity=%s, want UNKNOWN", category, finding.Severity)
+		}
+	}
+}
+
 func TestGetMetricsSummaryOrchestration(t *testing.T) {
 	namespace := "upm-clickhouse"
 	name := "clickhouse-demo"
@@ -491,6 +578,54 @@ func metricsSummaryStoreFixture(namespace, name string, includePodMonitor bool, 
 		fake.NewSimpleClientset(coreObjects...),
 		prometheus,
 	)
+}
+
+func diagnosticsStoreFixture(namespace, name string, includeServerPods bool) *Store {
+	prometheus := metricsSummaryPrometheusFixtures(namespace, name)
+	store := metricsSummaryStoreFixture(namespace, name, true, prometheus)
+	if includeServerPods {
+		return store
+	}
+	return NewStore(
+		dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), serverUnitSet(model.CreateClusterRequest{
+			Namespace: namespace,
+			Name:      name,
+			Version:   "26.3.9.8",
+			Topology:  model.Topology{Shards: 2, ReplicasPerShard: 2, KeeperReplicas: 3},
+			Storage: model.Storage{
+				ClassName:      "local-path",
+				ServerDataSize: "20Gi",
+				KeeperDataSize: "10Gi",
+			},
+			Security:   model.Security{AdminSecretRef: name + "-secret"},
+			Monitoring: model.MonitoringConfig{Enabled: true},
+		}), keeperUnitSet(model.CreateClusterRequest{
+			Namespace: namespace,
+			Name:      name,
+			Version:   "26.3.9.8",
+			Topology:  model.Topology{Shards: 2, ReplicasPerShard: 2, KeeperReplicas: 3},
+			Storage: model.Storage{
+				ClassName:      "local-path",
+				ServerDataSize: "20Gi",
+				KeeperDataSize: "10Gi",
+			},
+			Security:   model.Security{AdminSecretRef: name + "-secret"},
+			Monitoring: model.MonitoringConfig{Enabled: true},
+		})),
+		fake.NewSimpleClientset(&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: "clickhouse-26.3.9.8-config-value", Namespace: managerNamespace},
+			Data:       map[string]string{"clickhouse": "topology:\n  shards: \"2\"\n  replicasPerShard: \"2\"\nkeeper:\n  replicas: \"3\"\n"},
+		}),
+	)
+}
+
+func diagnosticFinding(report model.DiagnosticsReport, category string) *model.DiagnosticsFinding {
+	for i := range report.Findings {
+		if report.Findings[i].Category == category {
+			return &report.Findings[i]
+		}
+	}
+	return nil
 }
 
 func containsString(values []string, needle string) bool {

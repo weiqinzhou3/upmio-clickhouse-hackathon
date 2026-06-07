@@ -1,0 +1,421 @@
+{
+  "requestId": "req-97c52c56ed328d2a",
+  "namespace": "upm-clickhouse-phase03-runtime",
+  "name": "clickhouse-phase03",
+  "cluster": "clickhouse-phase03",
+  "status": "UNKNOWN",
+  "generatedAt": "2026-06-07T07:48:33.345064298Z",
+  "filters": {
+    "limit": 20
+  },
+  "thresholds": {
+    "replicaDelayWarnSeconds": 60,
+    "replicaDelayCriticalSeconds": 300,
+    "replicationQueueWarn": 50,
+    "replicationQueueCritical": 500,
+    "activePartsPerPartitionWarn": 150,
+    "inactivePartsWarn": 50,
+    "mergeElapsedWarnSeconds": 1800,
+    "mutationAgeWarnSeconds": 600
+  },
+  "summary": {
+    "info": 7,
+    "warnings": 0,
+    "critical": 0,
+    "unknown": 2
+  },
+  "findings": [
+    {
+      "category": "keeper",
+      "severity": "INFO",
+      "title": "Keeper quorum has one leader and followers",
+      "evidence": {
+        "failures": {},
+        "leaders": 1,
+        "roles": {
+          "clickhouse-phase03-keeper-0": "follower",
+          "clickhouse-phase03-keeper-1": "follower",
+          "clickhouse-phase03-keeper-2": "leader"
+        }
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "storage",
+      "severity": "INFO",
+      "title": "PVCs are bound and capacity metadata is visible",
+      "evidence": {
+        "actualPVCs": 7,
+        "expectedPVCs": 7,
+        "notBoundPVCs": [],
+        "pvcs": [
+          {
+            "capacity": "20Gi",
+            "name": "clickhouse-phase03-0-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-13f1d54f-b585-4e39-9aea-fd4ff57b92dc"
+          },
+          {
+            "capacity": "20Gi",
+            "name": "clickhouse-phase03-1-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-8a7c8dbf-7fbb-494e-81b9-a67c9fba32ba"
+          },
+          {
+            "capacity": "20Gi",
+            "name": "clickhouse-phase03-2-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-bd58311d-f4d5-4184-b418-6eabd41eaaee"
+          },
+          {
+            "capacity": "20Gi",
+            "name": "clickhouse-phase03-3-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-22d04cc3-ebd0-41f1-9c4f-53f058960869"
+          },
+          {
+            "capacity": "10Gi",
+            "name": "clickhouse-phase03-keeper-0-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-f09fa9a7-2bf6-4e17-9f89-87635808a84c"
+          },
+          {
+            "capacity": "10Gi",
+            "name": "clickhouse-phase03-keeper-1-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-96ec41c0-edf7-4de7-8b91-b275df13ebaf"
+          },
+          {
+            "capacity": "10Gi",
+            "name": "clickhouse-phase03-keeper-2-data",
+            "phase": "Bound",
+            "storageClass": "local-path",
+            "volumeName": "pvc-96ea0f86-c614-4c13-a7e1-9ca11aca87b4"
+          }
+        ]
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "replica",
+      "severity": "INFO",
+      "title": "Replicas are writable and caught up",
+      "evidence": {
+        "issues": [],
+        "replicas": [
+          {
+            "absoluteDelay": 0,
+            "database": "phase03_api_validation",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-0",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "phase03_manual_acceptance",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-0",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "phase03_review_closeout",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-0",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "upm_healthcheck",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-0",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "phase03_api_validation",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-1",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "phase03_manual_acceptance",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-1",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "phase03_review_closeout",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-1",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "upm_healthcheck",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-1",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "phase03_api_validation",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-2",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "phase03_manual_acceptance",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-2",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "phase03_review_closeout",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-2",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "upm_healthcheck",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-2",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "phase03_api_validation",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-3",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "phase03_manual_acceptance",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-3",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "phase03_review_closeout",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-3",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          },
+          {
+            "absoluteDelay": 0,
+            "database": "upm_healthcheck",
+            "futureParts": 0,
+            "host": "clickhouse-phase03-3",
+            "isReadonly": 0,
+            "isSessionExpired": 0,
+            "queueSize": 0,
+            "table": "local_events"
+          }
+        ],
+        "samplePod": "clickhouse-phase03-0"
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "replication_queue",
+      "severity": "INFO",
+      "title": "Replication queue is empty",
+      "evidence": {
+        "samplePod": "clickhouse-phase03-0"
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "parts",
+      "severity": "INFO",
+      "title": "Parts and partitions are within configured thresholds",
+      "evidence": {
+        "issues": [],
+        "partitions": [
+          {
+            "activeParts": 4,
+            "bytes": 2412,
+            "database": "upm_healthcheck",
+            "partition": "tuple()",
+            "rows": 16,
+            "table": "local_events"
+          },
+          {
+            "activeParts": 4,
+            "bytes": 2400,
+            "database": "phase03_manual_acceptance",
+            "partition": "tuple()",
+            "rows": 16,
+            "table": "local_events"
+          },
+          {
+            "activeParts": 4,
+            "bytes": 2400,
+            "database": "phase03_review_closeout",
+            "partition": "tuple()",
+            "rows": 16,
+            "table": "local_events"
+          },
+          {
+            "activeParts": 4,
+            "bytes": 2400,
+            "database": "phase03_api_validation",
+            "partition": "tuple()",
+            "rows": 16,
+            "table": "local_events"
+          }
+        ],
+        "samplePod": "clickhouse-phase03-0",
+        "tables": [
+          {
+            "activeBytes": 2412,
+            "activeParts": 4,
+            "activeRows": 16,
+            "database": "upm_healthcheck",
+            "inactiveParts": 0,
+            "table": "local_events"
+          },
+          {
+            "activeBytes": 2400,
+            "activeParts": 4,
+            "activeRows": 16,
+            "database": "phase03_api_validation",
+            "inactiveParts": 0,
+            "table": "local_events"
+          },
+          {
+            "activeBytes": 2400,
+            "activeParts": 4,
+            "activeRows": 16,
+            "database": "phase03_review_closeout",
+            "inactiveParts": 0,
+            "table": "local_events"
+          },
+          {
+            "activeBytes": 2400,
+            "activeParts": 4,
+            "activeRows": 16,
+            "database": "phase03_manual_acceptance",
+            "inactiveParts": 0,
+            "table": "local_events"
+          }
+        ]
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "merges",
+      "severity": "INFO",
+      "title": "No running merges matched the diagnostics filter",
+      "evidence": {
+        "samplePod": "clickhouse-phase03-0"
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "mutations",
+      "severity": "INFO",
+      "title": "No mutations matched the diagnostics filter",
+      "evidence": {
+        "samplePod": "clickhouse-phase03-0"
+      },
+      "recommendation": "No action required.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "write_client_stats",
+      "severity": "UNKNOWN",
+      "title": "system.query_log is not available",
+      "evidence": {
+        "error": "",
+        "exists": "0"
+      },
+      "recommendation": "Enable ClickHouse query_log to collect write client statistics by user, client IP, and target table.",
+      "humanReviewRequired": false
+    },
+    {
+      "category": "write_quality",
+      "severity": "UNKNOWN",
+      "title": "Write quality row-count criteria were not provided",
+      "evidence": {
+        "optional": [
+          "partition",
+          "timeColumn",
+          "startTime",
+          "endTime",
+          "expectedRows"
+        ],
+        "required": [
+          "database",
+          "table"
+        ]
+      },
+      "recommendation": "Provide database and table, plus optional partition/time filters and expectedRows, to run a read-only row-count validation.",
+      "humanReviewRequired": false
+    }
+  ]
+}
