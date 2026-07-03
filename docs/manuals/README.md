@@ -12,6 +12,7 @@ This directory contains the user-facing manuals for the completed hackathon MVP.
 | [Scripts Manual](scripts-manual.md) | Centralized script inventory and usage guide |
 | [Demo Guide](demo-guide.md) | Recommended hackathon demo flow and validation commands |
 | [Full Demo Runbook](full-demo-runbook.md) | Single runbook from environment preparation to complete demo |
+| [Delivery Scope Statement](delivery-scope-statement.md) | Judge-facing clarification that Phase 01-07 are the current delivery and Phase 08-12 are future roadmap |
 | [Hackathon Stage 2 Assessment](hackathon-stage2-assessment.md) | Coverage judgment against the hackathon second-stage goals |
 
 The full endpoint-level API reference remains in

@@ -46,6 +46,12 @@ The review focus is:
 The current repository satisfies the hackathon second-stage MVP target at the
 backend/control-plane, runtime validation, documentation, and AI evidence level.
 
+The current implemented delivery boundary is Phase 01 to Phase 07. Phase 08 to
+Phase 12 are future roadmap items recorded from the first-stage Spec and later
+planning discussions. They are not unfinished requirements of the current
+hackathon MVP and should not be judged as missing implementation unless the
+review standard explicitly requires post-MVP productionization.
+
 The strongest scoring points are:
 
 - real Kubernetes runtime instead of paper-only design;
@@ -63,7 +69,7 @@ The strongest scoring points are:
 | No production authentication/RBAC | Acceptable for isolated hackathon lab; not production-ready | Document as future work |
 | No persistent operation history database | Current task status is derived from K8s resources | Add persistence later for audit/history |
 | No backup retention cleanup | Explicitly out of MVP scope | Add retention policy in a future phase |
-| No config lifecycle/scaling implementation | Phase 08 not implemented | Treat as roadmap/future evolution |
+| No config lifecycle/scaling implementation | Phase 08 is a future roadmap/design boundary, not a current MVP implementation commitment | Treat as roadmap/future evolution |
 | kube-prometheus-stack install automation is external | Acceptable if deployment manual is clear | Add a one-command bootstrap script after demo UI or if judges require it |
 
 ## Frontend Judgment

@@ -16,6 +16,15 @@ out, and merged into `main`.
 Phase 08 has been used as the planning entry point for post-MVP operations.
 Phases 09 to 12 are draft plans and have not entered implementation.
 
+Judge-facing delivery boundary:
+
+- The current implemented and reviewable delivery is Phase 01 to Phase 07.
+- Phase 08 to Phase 12 are future iteration plans derived from the first-stage
+  Spec and requirement coverage analysis.
+- Phase 08 to Phase 12 must not be interpreted as unfinished current MVP tasks.
+- The demo should only claim capabilities that were implemented and validated
+  in Phase 01 to Phase 07.
+
 Current practical demo capability:
 
 - deploy and validate a ClickHouse cluster through UPMIO;

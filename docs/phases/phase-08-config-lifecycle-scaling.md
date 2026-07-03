@@ -1,8 +1,8 @@
 # Phase 08: Config, Lifecycle, and Scaling Management
 
-- Version: 0.4
+- Version: 0.5
 - Date: 2026-05-27
-- Status: Confirmed
+- Status: Future roadmap / not implemented in current MVP
 - Priority: P2
 - Owner: zqw
 - Depends on:
@@ -21,6 +21,16 @@
 Define and phase future ClickHouse configuration change, instance lifecycle, and scaling management.
 
 This phase does not automatically execute high-risk operations by default. It creates controlled workflows and acceptance boundaries for later productization.
+
+Delivery boundary:
+
+- Phase 08 is not part of the implemented Phase 01-07 hackathon MVP delivery.
+- It records future productionization direction for config, lifecycle, and
+  scaling operations.
+- Do not treat this phase as an unfinished current-delivery implementation
+  requirement.
+- No Phase 08 capability may be claimed as supported until a later implementation
+  phase adds API, runtime validation, review, and closeout evidence.
 
 ## 2. Scope
 
@@ -222,3 +232,4 @@ If implementation is not approved, verification is documentation review plus exp
 | 0.2 | 2026-05-27 | Added config/lifecycle/scaling scope |
 | 0.3 | 2026-05-27 | Added metadata and red-team fix structure |
 | 0.4 | 2026-05-27 | Restored operation-specific workflows, safety rules, API candidates, acceptance criteria, and verification guidance |
+| 0.5 | 2026-07-03 | Clarified Phase 08 as future roadmap, not part of the implemented Phase 01-07 MVP delivery |

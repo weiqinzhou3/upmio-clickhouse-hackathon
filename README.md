@@ -267,6 +267,15 @@ PASS phase07_backup_restore_runtime_validation
 详细评估见
 [`docs/manuals/hackathon-stage2-assessment.md`](docs/manuals/hackathon-stage2-assessment.md)。
 
+交付边界说明：
+
+- 当前可验收工程交付范围是 Phase 01 到 Phase 07。
+- Phase 08 到 Phase 12 是未来迭代规划，不是当前 MVP 未完成项。
+- Demo 中只宣称已经通过真实 Kubernetes 验证的 Phase 01 到 Phase 07 能力。
+
+详细说明见
+[`docs/manuals/delivery-scope-statement.md`](docs/manuals/delivery-scope-statement.md)。
+
 ## 前端界面状态
 
 当前 MVP 没有自定义前端界面。按比赛要求，API、核心代码、可运行 Demo
@@ -293,6 +302,7 @@ ClickHouse。
 | [`docs/manuals/scripts-manual.md`](docs/manuals/scripts-manual.md) | 脚本使用手册 |
 | [`docs/manuals/demo-guide.md`](docs/manuals/demo-guide.md) | 黑客松 Demo 手册 |
 | [`docs/manuals/full-demo-runbook.md`](docs/manuals/full-demo-runbook.md) | 从 0 到完整 Demo 的操作手册 |
+| [`docs/manuals/delivery-scope-statement.md`](docs/manuals/delivery-scope-statement.md) | 黑客松交付边界说明 |
 | [`docs/manuals/hackathon-stage2-assessment.md`](docs/manuals/hackathon-stage2-assessment.md) | 第二阶段目标覆盖评估 |
 | [`docs/master-spec.md`](docs/master-spec.md) | Master Spec |
 
